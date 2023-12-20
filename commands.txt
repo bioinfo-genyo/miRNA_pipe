@@ -1,0 +1,10 @@
+## fasta: https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+## gtf: https://ftp.ebi.ac.uk/pub/databases/RNAcentral/current_release/genome_coordinates/gff3/homo_sapiens.GRCh38.gff3.gz
+## tax: 9606
+## kegg: hsa
+## use_mirbase = "https://mirbase.org/download/hsa.gff3"
+
+python 1_2_fastqc_trimming.py -I fastq_folder -A AACTGTAGGCACCATCAAT -R 1
+python 1_3_prepare_ref.py --fasta {fasta_file} --ref {reference_folder}
+python 1_4_fastq_to_bam.py --ref {reference_folder} --kegg {kegg} --run {run}
+python 1_5_bam_to_counts.py --ref {reference_folder} --tax {tax} --gff {gff} --kegg {kegg} --use-mirbase {use_mirbase} --run {run}
