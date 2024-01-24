@@ -1,3 +1,45 @@
+def detect_paired_single(sampleName,listFiles):
+    sampleFiles = [sampleFile for sampleFile in listFiles if sampleName in sampleFile and "_L001_" in sampleFile]
+    if len(sampleFiles) == 2:
+        return "paired"
+    else:
+        return "single"
+
+def shutil_python(output_file,input_files):
+    with open(output_file, 'wb') as out:
+        for input_file in input_files:
+            with open(input_file, 'rb') as f_in:
+                shutil.copyfileobj(f_in, out)
+    # Compress the concatenated data
+    subprocess.run(["gzip", output_file], check=True)
+
+def zcat_files(output_file,input_files):
+    os.system("zcat {} >{}".format(" ".join(input_files),output_file))
+    os.system("gzip {}".format(output_file))
+
+
+def concatenate_files(args):
+    sampleName, listFiles, run = args
+    paired_or_single = detect_paired_single(sampleName,listFiles)
+    if paired_or_single == "paired":
+        strands = ["R1","R2"]
+    else:
+        strands = ["R1"]
+    sampleDict = {}
+    sampleName_change = sampleName.replace("-","_")
+    sampleFiles = [sampleFile for sampleFile in listFiles if sampleName in sampleFile]
+    for strand in strands:
+        input_files = [sampleFile for sampleFile in sampleFiles if strand in sampleFile]
+        input_files.sort()
+        output_file = "temp_fold/"+ os.path.basename(input_files[0].replace("_L001_","_"))
+        output_file = output_file.replace("-","_").replace(".gz","")
+        if run == "1":
+            if os.path.exists(output_file+".gz"):
+                os.remove(output_file+".gz")
+            zcat_files(output_file,input_files)
+        sampleDict[strand] = output_file+".gz"
+    return({sampleName_change:sampleDict})
+
 def mkdir(dir):
     """
         Function to create a directory 

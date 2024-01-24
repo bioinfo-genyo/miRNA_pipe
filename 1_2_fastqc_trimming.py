@@ -5,7 +5,7 @@ from functions.libs import list_dir_files,get_sample_name,mkdir,eval_fastq_files
 parser = argparse.ArgumentParser()
 parser.add_argument("-I", "--input-dir")
 parser.add_argument("-A", "--adapter")
-parser.add_argument("-L", "--run")
+parser.add_argument("-R", "--run")
 args = vars(parser.parse_args())
 
 input_dir = args["input_dir"]
