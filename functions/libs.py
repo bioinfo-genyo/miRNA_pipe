@@ -22,6 +22,10 @@ def shutil_python(output_file,input_files):
     Returns:
         None
     """
+    import shutil
+    import subprocess
+
+    # Concatenate the data from the input files
     with open(output_file, 'wb') as out:
         for input_file in input_files:
             with open(input_file, 'rb') as f_in:
@@ -40,6 +44,8 @@ def zcat_files(output_file,input_files):
     Returns:
         None
     """
+    import os
+    
     os.system("zcat {} >{}".format(" ".join(input_files),output_file))
     os.system("gzip {}".format(output_file))
 
@@ -56,6 +62,8 @@ def concatenate_files(args):
         dict: A dictionary with sample name as key and a nested dictionary containing 
         file information as value.
     """
+    import os
+    
     sampleName, listFiles, run = args
     paired_or_single = detect_paired_single(sampleName,listFiles)
     if paired_or_single == "paired":

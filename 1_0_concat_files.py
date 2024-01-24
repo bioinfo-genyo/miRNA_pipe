@@ -2,9 +2,6 @@ import argparse
 import os
 import glob
 import multiprocessing
-import shutil
-import subprocess
-import gzip
 from functions.libs import detect_paired_single, shutil_python, zcat_files, concatenate_files
 
 
