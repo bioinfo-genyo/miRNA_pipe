@@ -1,4 +1,12 @@
 def detect_paired_single(sampleName,listFiles):
+    """
+    Detects if the sample is paired or single-end based on the given sample name and list of files.
+    Args:
+        sampleName (str): The name of the sample to detect.
+        listFiles (list): The list of files to search for the sample.
+    Returns:
+        str: "paired" if the sample has 2 matching files, "single" otherwise.
+    """
     sampleFiles = [sampleFile for sampleFile in listFiles if sampleName in sampleFile and "_L001_" in sampleFile]
     if len(sampleFiles) == 2:
         return "paired"
@@ -6,6 +14,14 @@ def detect_paired_single(sampleName,listFiles):
         return "single"
 
 def shutil_python(output_file,input_files):
+    """
+    Concatenates the data from multiple input files and writes the result to the specified output file. 
+    Args:
+        output_file (str): The path to the output file.
+        input_files (List[str]): The list of paths to the input files.
+    Returns:
+        None
+    """
     with open(output_file, 'wb') as out:
         for input_file in input_files:
             with open(input_file, 'rb') as f_in:
@@ -14,11 +30,32 @@ def shutil_python(output_file,input_files):
     subprocess.run(["gzip", output_file], check=True)
 
 def zcat_files(output_file,input_files):
+    """
+    Compresses and concatenates the input files into the specified output file.
+    
+    Args:
+        output_file (str): The name of the output file to be created.
+        input_files (list of str): The list of input files to be concatenated and compressed.
+        
+    Returns:
+        None
+    """
     os.system("zcat {} >{}".format(" ".join(input_files),output_file))
     os.system("gzip {}".format(output_file))
 
 
 def concatenate_files(args):
+    """
+    Concatenates files based on sample name and list of files and returns a dictionary 
+    containing sample name and corresponding files. 
+
+    Args:
+        args (tuple): A tuple containing sample name, list of files, and a run number.
+
+    Returns:
+        dict: A dictionary with sample name as key and a nested dictionary containing 
+        file information as value.
+    """
     sampleName, listFiles, run = args
     paired_or_single = detect_paired_single(sampleName,listFiles)
     if paired_or_single == "paired":
