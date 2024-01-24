@@ -78,11 +78,26 @@ def read_gzfile(filename):
             yield line.rstrip()
 
 def write_log(logfile,text,mode):
+    """
+    Writes the given text to the specified log file using the provided mode.
+
+    Args:
+        logfile (str): The path to the log file.
+        text (str): The text to be written to the log file.
+        mode (str): The mode in which the file should be opened.
+
+    Returns:
+        None
+    """
     with open(logfile,mode) as write_file:
         write_file.write(text)
 
 
 def eval_fastq_file(args):
+    """
+    Function to evaluate a fastq file.
+    Takes arguments for sample name, sample dictionary, output, adapter, threads, and run. 
+    """
     import numpy as np
     sample_name,sample_dict,output,adapter,threads,run = args
     import subprocess
@@ -113,12 +128,35 @@ def eval_fastq_file(args):
             write_log(log_file,text,mode)
 
 def eval_fastq_files(sample_dict,output,adapter,run):
+    """
+    Evaluate fastq files using multiprocessing. 
+
+    Args:
+        sample_dict: A dictionary containing sample names as keys and sample data as values.
+        output: The output directory for the evaluated files.
+        adapter: The adapter for the evaluation process.
+        run: The run number for the evaluation process.
+
+    Returns:
+        None
+    """
     import multiprocessing
     with multiprocessing.Pool(len(sample_dict)) as pool:
         pool.map(eval_fastq_file,[(sample_name,sample_dict[sample_name],output,adapter,8,run) for sample_name in sample_dict])
 
 
 def remove_umi_delete_adapter(fastq_file,adapter,outfile):
+    """
+    Remove UMIs and delete adapters from a given fastq file and save the processed data to an output file.
+
+    Args:
+    fastq_file (str): The input fastq file path.
+    adapter (str): The adapter sequence to be removed.
+    outfile (str): The output file path to save the processed data.
+
+    Returns:
+    int: The total count of duplicated lines after processing.
+    """
     import gzip
     import numpy as np
     lines_list = read_gzfile(fastq_file)
@@ -147,6 +185,13 @@ def remove_umi_delete_adapter(fastq_file,adapter,outfile):
     return(duplicated_lines)
 
 def run_trimming(args):
+    """
+    Trims the given fastq file using umi removal and cutadapt. 
+    Args:
+        args (tuple): A tuple containing sample_name, fastq_file, adapter, num_threads, and run.
+    Returns:
+        dict: A dictionary containing the sample_name as key and the trimmed fastq file as value.
+    """
     import subprocess
     sample_name, fastq_file, adapter, num_threads, run = args
     outFileUMI = f"02_trim/{sample_name}_umi.fastq.gz"
@@ -168,6 +213,17 @@ def run_trimming(args):
     return({sample_name:outFileCut})
 
 def trimming_files(sample_dict,adapter,run):
+    """
+    Trims the files in the given sample dictionary using the specified adapter and run.
+
+    Args:
+        sample_dict (dict): A dictionary containing sample names as keys and file paths as values.
+        adapter (str): The adapter sequence to be used for trimming.
+        run (str): The run identifier.
+
+    Returns:
+        dict: A dictionary containing the trimmed sample names as keys and the trimmed file paths as values.
+    """
     import multiprocessing
     import collections
     with multiprocessing.Pool(len(sample_dict)) as pool:
@@ -176,11 +232,17 @@ def trimming_files(sample_dict,adapter,run):
     return(sample_dict)
 
 def convert_quality_to_numeric(quality_str):
+    """
+    Convert ASCII quality scores to numeric values
+    """
     # Convert ASCII quality scores to numeric values
     quality_str_num = [ord(str(char)) - 33 for char in quality_str]
     return(quality_str_num)
 
 def get_fastq_stats(args):
+    """
+    Calculate and write quality and length statistics of FASTQ reads to log file.
+    """
     sample_name,fastq,run = args
     if run == "1":
         import numpy
@@ -228,12 +290,29 @@ def get_fastq_stats(args):
 
 
 def get_stats_fastq_files(sample_dict,run):
+    """
+    Calculate statistics for fastq files using multiprocessing.
+
+    :param sample_dict: A dictionary containing sample names as keys and file paths as values.
+    :param run: The run identifier for the fastq files.
+    :return: None
+    """
     import multiprocessing
     with multiprocessing.Pool(len(sample_dict)) as pool:
         pool.map(get_fastq_stats,[(sample_name,sample_dict[sample_name],run) for sample_name in sample_dict])
 
 
 def prepare_ref(fasta,ref):
+    """
+    Prepare reference for fasta file and launch the reference using subprocess.
+    
+    Args:
+        fasta (str): The path to the fasta file.
+        ref (str): The reference directory.
+
+    Returns:
+        None
+    """
     import subprocess
     mkdir(f"{ref}/Bowtie")
     bw_files = list_dir_files(f"{ref}/Bowtie")
@@ -245,6 +324,19 @@ def prepare_ref(fasta,ref):
 
 
 def filter_gff(gene_loc, biotype,save_path,header,idmapcont_ndict):
+    """
+    Filter gff file by biotype and save the filtered content to a new file.
+    
+    Args:
+        gene_loc (list): List of lines from the gff file.
+        biotype (str): The biotype to filter the gff file by.
+        save_path (str): The path to save the filtered content.
+        header (str): The header to prepend to the filtered content.
+        idmapcont_ndict (dict): Dictionary containing the mapping of IDs to new names.
+
+    Returns:
+        str: The path to the saved filtered content file.
+    """
     # Filter biotype
     gene_loc_biotype = [line for line in gene_loc if line.split("\t")[-1].split("type=")[1].split(";")[0] == biotype]
     # List to dictionary
@@ -280,6 +372,18 @@ def filter_gff(gene_loc, biotype,save_path,header,idmapcont_ndict):
     return(outfile)
 
 def prepare_biotypes(reference_folder,gtf,tax,biotypes = "miRNA"):
+    """
+    Prepare biotypes from a given GTF file for a specific taxonomy and return the filtered GTF files.
+    
+    Args:
+    - reference_folder: A string representing the directory where the GTF file will be saved.
+    - gtf: A string representing the path to the input GTF file.
+    - tax: A string representing the taxonomy for filtering the GTF file.
+    - biotypes: A string or list of strings representing the biotypes to filter the GTF file (default is "miRNA").
+    
+    Returns:
+    A dictionary containing filtered GTF files for the specified biotypes.
+    """
     import gzip
     import os
     save_path = os.path.join(reference_folder,os.path.basename(gtf))
@@ -323,6 +427,16 @@ def prepare_biotypes(reference_folder,gtf,tax,biotypes = "miRNA"):
     return(gtf_files)
 
 def filter_mirbase(kegg,ref_file):
+    """
+    Filter the contents of the given file based on the provided KEGG identifier.
+    
+    Args:
+        kegg (str): The KEGG identifier to filter the file contents.
+        ref_file (str): The reference file to be filtered.
+        
+    Returns:
+        dict: A dictionary containing the filtered file contents with modifications.
+    """
     with open(ref_file,"r") as r:
         fileCont = r.readlines()
     fileCont = {fileCont[i].rstrip():fileCont[i+1].rstrip() for i in range(0,len(fileCont),2) if kegg in fileCont[i]}
@@ -330,6 +444,11 @@ def filter_mirbase(kegg,ref_file):
     return(fileCont)
 
 def get_mirna_counts(args):
+    """
+    This function takes in three arguments: sample_name, fastq_file, and mirbaseDB.
+    It processes the fastq_file to count the occurrences of different miRNAs based on the provided mirbaseDB.
+    The function returns a dictionary containing the sample_name, mirna sequences counts, and the output file.
+    """
     import collections
     import numpy as np
     sample_name, fastq_file, mirbaseDB = args
@@ -368,6 +487,16 @@ def get_mirna_counts(args):
     return({sample_name:{"mirna":mirna_seqs_counts,"file":outfile}})
 
 def mirbase_sequence_assign(sample_dict, mirbaseDB):
+    """
+    Assigns mirbase sequence to sample dictionary and returns sample_files and mirna_counts.
+    
+    Args:
+        sample_dict: A dictionary containing sample information.
+        mirbaseDB: The mirbase database for sequence assignment.
+    
+    Returns:
+        A tuple containing sample_files and mirna_counts.
+    """
     import multiprocessing
     import collections
     with multiprocessing.Pool(len(sample_dict)) as pool:
@@ -380,6 +509,15 @@ def mirbase_sequence_assign(sample_dict, mirbaseDB):
 
 
 def run_aligning(args):
+    """
+    Run aligning with the given arguments.
+
+    Args:
+        args (tuple): A tuple containing sample_name, fastq_file, index, num_threads, and run.
+
+    Returns:
+        dict: A dictionary containing the sample_name and the corresponding outBam file.
+    """
     import subprocess
     sample_name, fastq_file,index,num_threads, run = args
     logBowtie = f"00_log/{sample_name}.bowtie"
@@ -393,6 +531,17 @@ def run_aligning(args):
     return({sample_name:outBam})
 
 def align_samples(sample_dict, reference, run):
+    """
+    Aligns samples using multiprocessing and returns a dictionary of aligned samples.
+
+    Args:
+        sample_dict: A dictionary containing sample names as keys and sample data as values.
+        reference: The reference data for alignment.
+        run: The run data for alignment.
+
+    Returns:
+        A dictionary containing aligned samples.
+    """
     import multiprocessing
     import collections
     with multiprocessing.Pool(len(sample_dict)) as pool:
@@ -401,6 +550,15 @@ def align_samples(sample_dict, reference, run):
     return(sample_dict)
 
 def get_map_quality(args):
+    """
+    Calculate the mapping quality based on the input arguments.
+
+    Args:
+        args (tuple): A tuple containing the sample name, miRNA counts, and run.
+
+    Returns:
+        None
+    """
     sample_name, mirna_counts, run = args
     mirna_counts = sum(mirna_counts.values())
     
@@ -418,11 +576,28 @@ def get_map_quality(args):
         write_log(log_file, text, mode)
 
 def quality_mapping_samples(sample_dict, mirna_counts, run):
+    """
+    Map quality samples using multiprocessing.
+
+    :param sample_dict: Dictionary of sample names and their corresponding data
+    :param mirna_counts: Counts of miRNA for each sample
+    :param run: Information about the run
+    :return: None
+    """
     import multiprocessing
     with multiprocessing.Pool(len(sample_dict)) as pool:
         pool.map(get_map_quality,[(sample_name,mirna_counts[sample_name], run) for sample_name in sample_dict])
 
 def run_featurecount(args):
+    """
+    Function to run featureCounts on a BAM file using subprocess.
+    
+    Args:
+        args (tuple): A tuple containing sample_name, bam_file, gtf_file, biotype, num_threads, and run.
+
+    Returns:
+        dict: A dictionary containing the sample_name as the key and the output file name as the value.
+    """
     import subprocess
     sample_name, bam_file, gtf_file,biotype, num_threads, run = args
     out_name = f"04_counts/{sample_name}_{biotype}.counts.txt"
@@ -432,6 +607,18 @@ def run_featurecount(args):
 
 
 def quantify_biotype(sample_dict, gtf_file, biotype, run):
+    """
+    Quantifies the biotype of each sample in the sample_dict using multiprocessing.
+    
+    Args:
+        sample_dict (dict): A dictionary containing sample names as keys and their data as values.
+        gtf_file (str): The file path to the GTF file.
+        biotype (str): The biotype to be quantified.
+        run (int): The run number.
+        
+    Returns:
+        dict: A dictionary containing the quantification results for each sample.
+    """
     import multiprocessing
     import collections
     with multiprocessing.Pool(len(sample_dict)) as pool:
@@ -441,6 +628,15 @@ def quantify_biotype(sample_dict, gtf_file, biotype, run):
 
 
 def quantify_mirnas(args):
+    """
+    Quantifies miRNAs based on the given arguments.
+
+    Args:
+        args (tuple): A tuple containing sample_name (str), mirna_counts (dict), and run (str).
+
+    Returns:
+        None
+    """
     sample_name, mirna_counts, run = args
     mirna_counts = sum(mirna_counts.values())
     with open(f"04_counts/{sample_name}_miRNA.counts.txt.summary","r") as f:
@@ -456,6 +652,17 @@ def quantify_mirnas(args):
         write_log(log_file, text, mode)
 
 def quantify_samples(sample_dict, mirna_counts, run):
+    """
+    Quantifies the samples using multiprocessing.
+
+    Args:
+        sample_dict: A dictionary containing sample names as keys and sample data as values.
+        mirna_counts: The miRNA counts for each sample.
+        run: The run information.
+
+    Returns:
+        None
+    """
     import multiprocessing
     with multiprocessing.Pool(len(sample_dict)) as pool:
         pool.map(quantify_mirnas,[(sample_name,mirna_counts[sample_name], run) for sample_name in sample_dict])
@@ -464,6 +671,15 @@ def quantify_samples(sample_dict, mirna_counts, run):
 
 
 def concat_mirna(args):
+    """
+    Concatenate miRNA data from different sources and write the combined counts to a file.
+    
+    Args:
+        args (tuple): A tuple containing sample_name (str), count_file (str), mirna_counts (dict), use_mirbase (str), and mirbaseDB (dict).
+    
+    Returns:
+        dict: A dictionary containing the sample name as key and the file path as value.
+    """
     sample_name, count_file, mirna_counts, use_mirbase, mirbaseDB = args
     print(count_file)
     with open(count_file) as f:
@@ -502,6 +718,18 @@ def concat_mirna(args):
     return({sample_name:f"04_counts/{sample_name}_miRNA_concat.txt"})
 
 def concat_mirna_samples(sample_dict, mirna_counts, use_mirbase, mirbaseDB):
+    """
+    Concatenates miRNA samples based on the provided sample dictionary, miRNA counts, and use of miRBase database.
+    
+    Parameters:
+    - sample_dict: dictionary containing miRNA samples
+    - mirna_counts: miRNA counts for each sample
+    - use_mirbase: boolean indicating whether to use miRBase database
+    - mirbaseDB: miRBase database
+    
+    Returns:
+    - sample_dict: concatenated miRNA samples
+    """
     import multiprocessing
     import collections
     with multiprocessing.Pool(len(sample_dict)) as pool:
