@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-I", "--input-dir")
 parser.add_argument("-A", "--adapter")
 parser.add_argument("-R", "--run")
-parser.add_argument("-L", "--slow")
+parser.add_argument("-L", "--slow") # Much slower processing, but less memory-intensive.
 args = vars(parser.parse_args())
 
 input_dir = args["input_dir"]
@@ -38,7 +38,7 @@ mkdir("02_trim")
 mkdir("05_plot")
 
 
-if slow:
+if slow == "1":
     sample_dict = trimming_files_slow(sample_dict, adapter, run)
 else:
     eval_fastq_files(sample_dict, "FastQC/Raw", adapter, run)

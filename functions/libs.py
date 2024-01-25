@@ -402,12 +402,13 @@ def trimming_files_slow(sample_dict, adapter, run):
         )
     )
 
+    trimmed_dict = {}
     for sample_name in sample_dict:
-        sample_dict[sample_name] = run_trimming(
+        trimmed_dict[sample_name] = run_trimming(
             args=(sample_name, sample_dict[sample_name], adapter, num_threads, run)
         )
 
-    return sample_dict
+    return trimmed_dict
 
 
 def convert_quality_to_numeric(quality_str):
@@ -494,7 +495,7 @@ def get_stats_fastq_files(sample_dict, run):
 
 def prepare_ref(fasta, ref):
     """
-    Prepare reference for fasta file and launch the reference using subprocess.
+    Prepares reference genome index for mapping.
 
     Args:
         fasta (str): The path to the fasta file.
@@ -505,16 +506,22 @@ def prepare_ref(fasta, ref):
     """
     import subprocess
 
+    num_threads = int(
+        subprocess.run("nproc --all", shell=True, capture_output=True).stdout.decode(
+            "utf-8"
+        )
+    )
+
     mkdir(f"{ref}/Bowtie")
     bw_files = list_dir_files(f"{ref}/Bowtie")
     if len(bw_files) == 0:
         ########### Launch Reference ###############
-        subprocess.run(f"gunzip {fasta}", shell=True)
+        subprocess.run(f"gunzip -k {fasta}", shell=True)
         subprocess.run(
-            f"bowtie-build {fasta.replace('.gz','')} {ref}/Bowtie/genome --threads 10",
+            f"bowtie-build {fasta.replace('.gz','')} {ref}/Bowtie/genome --threads {num_threads}",
             shell=True,
         )
-        subprocess.run(f"gzip {fasta.replace('.gz','')}", shell=True)
+        subprocess.run(f"rm {fasta.replace('.gz','')}", shell=True)
 
 
 def filter_gff(gene_loc, biotype, save_path, header, idmapcont_ndict):
