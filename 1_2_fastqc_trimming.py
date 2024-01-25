@@ -7,17 +7,20 @@ from functions.libs import (
     eval_fastq_files,
     trimming_files,
     get_stats_fastq_files,
+    trimming_files_slow,
 )
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-I", "--input-dir")
 parser.add_argument("-A", "--adapter")
 parser.add_argument("-R", "--run")
+parser.add_argument("-L", "--slow")
 args = vars(parser.parse_args())
 
 input_dir = args["input_dir"]
 adapter = args["adapter"]
 run = args["run"]
+slow = args["slow"]
 
 filenames = list_dir_files(input_dir, "fastq.gz")
 sample_names = get_sample_name(filenames)
@@ -34,10 +37,14 @@ mkdir("00_log")
 mkdir("02_trim")
 mkdir("05_plot")
 
-eval_fastq_files(sample_dict, "FastQC/Raw", adapter, run)
-sample_dict = trimming_files(sample_dict, adapter, run)
-eval_fastq_files(sample_dict, "FastQC/Trim", "None", run)
-get_stats_fastq_files(sample_dict, run)
+
+if slow:
+    sample_dict = trimming_files_slow(sample_dict, adapter, run)
+else:
+    eval_fastq_files(sample_dict, "FastQC/Raw", adapter, run)
+    sample_dict = trimming_files(sample_dict, adapter, run)
+    eval_fastq_files(sample_dict, "FastQC/Trim", "None", run)
+    get_stats_fastq_files(sample_dict, run)
 
 with open("00_log/1_2_fastq.json", "w") as jsonfile:
     json.dump(sample_dict, jsonfile, indent=4)

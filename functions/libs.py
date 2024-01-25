@@ -1,3 +1,6 @@
+from random import sample
+
+
 def detect_paired_single(sampleName, listFiles):
     """
     Detects if the sample is paired or single-end based on the given sample name and list of files.
@@ -375,6 +378,35 @@ def trimming_files(sample_dict, adapter, run):
             ],
         )
     sample_dict = dict(collections.ChainMap(*sample_dict))
+    return sample_dict
+
+
+def trimming_files_slow(sample_dict, adapter, run):
+    """
+    Trims files in the sample_dict using the specified adapter and run settings wihouth using multiprocessing.
+
+    Args:
+        sample_dict (dict): A dictionary containing sample names as keys and file paths as values.
+        adapter (str): The adapter sequence for trimming.
+        run (str): The run settings for trimming.
+
+    Returns:
+        dict: A dictionary containing trimmed sample names as keys and trimmed file paths as values.
+    """
+
+    import subprocess
+
+    num_threads = int(
+        subprocess.run("nproc --all", shell=True, capture_output=True).stdout.decode(
+            "utf-8"
+        )
+    )
+
+    for sample_name in sample_dict:
+        sample_dict[sample_name] = run_trimming(
+            args=(sample_name, sample_dict[sample_name], adapter, num_threads, run)
+        )
+
     return sample_dict
 
 
