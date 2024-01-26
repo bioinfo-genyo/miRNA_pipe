@@ -35,7 +35,12 @@ sampleNames = list(
 )
 sampleNames = [sampleName for sampleName in sampleNames if sampleName not in rem_sampls]
 
-with multiprocessing.Pool(int(processes)) as pool:
+if processes:
+    processes = int(processes)
+else:
+    processes = len(sampleNames)
+
+with multiprocessing.Pool(processes) as pool:
     pool.map(
         concatenate_files,
         [(sampleName, listFiles, run) for sampleName in sampleNames],

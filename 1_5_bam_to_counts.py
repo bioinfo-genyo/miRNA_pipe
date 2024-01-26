@@ -38,8 +38,9 @@ reference_folder, tax, gff, kegg, use_mirbase, run, processes = (
     args["run"],
     args["processes"],
 )
-processses = int(processes)
 
+if processes:
+    processes = int(processes)
 
 gtf_files = prepare_biotypes(reference_folder, gff, tax, biotypes="miRNA")
 ref_file = f"{reference_folder}/mature.fa"

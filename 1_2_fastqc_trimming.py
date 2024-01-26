@@ -27,7 +27,9 @@ input_dir, adapter, run, slow, processes = (
     args["slow"],
     args["processes"],
 )
-processes = int(processes)
+
+if processes:
+    processes = int(processes)
 
 filenames = list_dir_files(input_dir, "fastq.gz")
 sample_names = get_sample_name(filenames)

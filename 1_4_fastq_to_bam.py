@@ -30,7 +30,9 @@ reference_folder, kegg, run, processes = (
     args["run"],
     args["processes"],
 )
-processes = int(processes)
+
+if processes:
+    processes = int(processes)
 
 download_file("https://mirbase.org/download/mature.fa", f"{reference_folder}/mature.fa")
 ref_file = f"{reference_folder}/mature.fa"
