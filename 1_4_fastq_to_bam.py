@@ -17,7 +17,7 @@ parser.add_argument("-P", "--processes")
 args = vars(parser.parse_args())
 
 with open("00_log/1_3_ref.json", "r") as jsonfile:
-    reference = json.load(jsonfile)
+    bowtie_reference = json.load(jsonfile)
 
 with open("00_log/1_2_fastq.json", "r") as jsonfile:
     sample_dict = json.load(jsonfile)
@@ -39,7 +39,7 @@ ref_file = f"{reference_folder}/mature.fa"
 mirbaseDB = filter_mirbase(kegg, ref_file)
 
 sample_dict, mirna_counts = mirbase_sequence_assign(sample_dict, mirbaseDB, processes)
-sample_dict = align_samples(sample_dict, reference, run, processes)
+sample_dict = align_samples(sample_dict, bowtie_reference, run, processes)
 quality_mapping_samples(sample_dict, mirna_counts, run, processes)
 
 with open("00_log/1_4_bam.json", "w") as jsonfile:

@@ -296,7 +296,14 @@ def eval_fastq_files(sample_dict, output, adapter, run, processes="sample") -> N
         pool.map(
             eval_fastq_file,
             [
-                (sample_name, sample_dict[sample_name], output, adapter, num_threads, run)
+                (
+                    sample_name,
+                    sample_dict[sample_name],
+                    output,
+                    adapter,
+                    num_threads,
+                    run,
+                )
                 for sample_name in sample_dict
             ],
         )
@@ -717,14 +724,19 @@ def filter_mirbase(kegg, ref_file) -> dict[str, list[str]]:
     Returns:
         dict: A dictionary containing the filtered file contents with modifications.
     """
-
+    # Read the contents of the reference file (tho whole miRNA base database).
     with open(ref_file, "r") as r:
         fileCont = r.readlines()
+
+    # Creates a dictionary containing onlty the entries with the given KEGG identifier (hsa for human) as key and the miRNA sequence as value.
     fileCont = {
-        fileCont[i].rstrip(): fileCont[i + 1].rstrip()
+        fileCont[i].rstrip(): fileCont[i + 1].rstrip()  # Removes the \n character.
         for i in range(0, len(fileCont), 2)
         if kegg in fileCont[i]
     }
+
+    # Replaces the U with T in the miRNA sequence and saves it in a new dictionary.
+    # In this new dictionary, the keys are the sequences and the values are the identifiers.
     fileCont = {
         fileCont[key].replace("U", "T"): [
             key.split(" ")[0].replace(">", ""),
@@ -735,7 +747,7 @@ def filter_mirbase(kegg, ref_file) -> dict[str, list[str]]:
     return fileCont
 
 
-def get_mirna_counts(args) -> dict[any, dict[str, any]]:
+def get_mirna_counts(args) -> dict[str, dict[str, any]]:
     """
     This function takes in three arguments: sample_name, fastq_file, and mirbaseDB.
     It processes the fastq_file to count the occurrences of different miRNAs based on the provided mirbaseDB.
@@ -746,31 +758,54 @@ def get_mirna_counts(args) -> dict[any, dict[str, any]]:
     import numpy as np
 
     sample_name, fastq_file, mirbaseDB = args
-    lines_list = read_gzfile(fastq_file)
+    lines_list = read_gzfile(
+        fastq_file
+    )  # Reads the fastq file and returns a list of lines.
+
+    # After testing, the fastests way to access the data is with numpy arrays.
+    # As each sequence has 4 lines of information on a fastq file,
+    # the numpy array is used to split the list into chunks of 4 lines with
+    # the zip function.
     gzip_cont = np.array(list(zip(*[lines_list] * 4)))
 
+    # Creates a dictionary that unifies sequences with multiple identifiers.
+    # The keys are the sequences and the values are lists of all possible identifiers.
+    # mirbaseDB is the output from the filter_mirbase function.
     mirna_index = {}
+    # Remember, seqs are the keys and identifiers are the values.
     for seq, mirna in mirbaseDB.items():
+        # If the sequence is already in the dictionary, append the identifier to the list associated to each sequence.
         if seq in mirna_index:
-            mirna_index[seq].append(mirna[0])
+            mirna_index[seq].append(mirna[0])  # The mirbase identifier is at index 0.
+        # If the sequence is not in the dictionary, create a new entry with the sequence as key and the identifier as value.
         else:
             mirna_index[seq] = [mirna[0]]
 
     no_mirna_seqs = set()
+
+    # Generates an empty dict ready to storage lists.
     mirna_seqs = collections.defaultdict(list)
 
+    # This loops creates two dictionaries, mirna_seqs and no_mirna_seqs, with the sequence as key and the index of the sequence as value.
+    # mirna_seqs contains the indexes of the sequences that are in mirbase, while no_mirna_seqs contains the sequences' indexes that are not in mirbase.
     for i, entry in enumerate(gzip_cont):
-        seq = entry[1]  # Adjust this line to match the structure of your data
+        # Adjust this line to match the structure of your data. Fastq files contain the sequence in the second line.
+        seq = entry[1]
+        # If the sequence is in mirbase, append the index of the sequence to the list associated to each sequence.
         if seq in mirna_index:
             for mirna in mirna_index[seq]:
                 mirna_seqs[mirna].append(i)
+        # If the sequence is not in mirbase, add its index to the list of sequences without miRNAs.
         else:
             no_mirna_seqs.add(i)
 
+    # The following lines counts the number of occurrences of each miRNA.
+    # The lenght of the list contaning the index associated to each miRNA is the number of occurrences.
     mirna_seqs_counts = {}
     for mirna in mirna_seqs:
         mirna_seqs_counts[mirna] = len(mirna_seqs[mirna])
 
+    # We putput the sequences that are not in mirbase into a new file.
     no_mirna_seqs = [gzip_cont[i] for i in range(len(gzip_cont)) if i in no_mirna_seqs]
     outfile = f"02_trim/{sample_name}_trimmed_no_mirna.fastq.gz"
     import gzip
@@ -779,6 +814,9 @@ def get_mirna_counts(args) -> dict[any, dict[str, any]]:
     with gzip.open(outfile, "wb") as f:
         f.write(gzip_cont.encode())
 
+    # The output is a dictionary with the sample name as key and as a value, another dictionary with 2 key-value pairs.
+    # The first key is "mirna" and the value is a dictionary with the miRNA as key and the number of occurrences as value.
+    # The second key is "file" and the value is the name of the output file.
     return {sample_name: {"mirna": mirna_seqs_counts, "file": outfile}}
 
 
@@ -883,12 +921,18 @@ def align_samples(sample_dict, reference, run, processes="sample") -> dict[str, 
     import collections
 
     num_threads = multiprocessing.cpu_count()
-    
+
     with multiprocessing.Pool(processes) as pool:
         sample_dict = pool.map(
             run_aligning,
             [
-                (sample_name, sample_dict[sample_name], reference["index"], num_threads, run)
+                (
+                    sample_name,
+                    sample_dict[sample_name],
+                    reference["index"],
+                    num_threads,
+                    run,
+                )
                 for sample_name in sample_dict
             ],
         )
@@ -1007,7 +1051,14 @@ def quantify_biotype(
         sample_dict = pool.map(
             run_featurecount,
             [
-                (sample_name, sample_dict[sample_name], gtf_file, biotype, num_trheads, run)
+                (
+                    sample_name,
+                    sample_dict[sample_name],
+                    gtf_file,
+                    biotype,
+                    num_trheads,
+                    run,
+                )
                 for sample_name in sample_dict
             ],
         )
