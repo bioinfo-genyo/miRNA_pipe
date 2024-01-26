@@ -17,6 +17,7 @@ parser.add_argument("-G", "--gff")
 parser.add_argument("-K", "--kegg")
 parser.add_argument("-M", "--use-mirbase")
 parser.add_argument("-L", "--run")
+parser.add_argument("-P", "--processes")
 args = vars(parser.parse_args())
 
 
@@ -28,12 +29,16 @@ with open("00_log/1_4_mirna_counts.json", "r") as jsonfile:
 
 mkdir("04_counts")
 
-reference_folder = args["ref"]
-tax = args["tax"]
-gff = args["gff"]
-kegg = args["kegg"]
-use_mirbase = args["use_mirbase"]
-run = args["run"]
+reference_folder, tax, gff, kegg, use_mirbase, run, processes = (
+    args["ref"],
+    args["tax"],
+    args["gff"],
+    args["kegg"],
+    args["use_mirbase"],
+    args["run"],
+    args["processes"],
+)
+processses = int(processes)
 
 
 gtf_files = prepare_biotypes(reference_folder, gff, tax, biotypes="miRNA")
@@ -47,9 +52,9 @@ if use_mirbase != "0":
 
 for biotype in gtf_files:
     gtf_file = gtf_files[biotype]
-    sample_files_bio = quantify_biotype(sample_dict, gtf_file, biotype, run)
+    sample_files_bio = quantify_biotype(sample_dict, gtf_file, biotype, run, processes)
     if biotype == "miRNA":
-        quantify_samples(sample_files_bio, mirna_counts, run)
+        quantify_samples(sample_files_bio, mirna_counts, run, processes)
         sample_files_bio = concat_mirna_samples(
-            sample_files_bio, mirna_counts, use_mirbase, mirbaseDB
+            sample_files_bio, mirna_counts, use_mirbase, mirbaseDB, processes
         )

@@ -9,9 +9,17 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-D", "--project")
 parser.add_argument("-X", "--rem_sampls")
 parser.add_argument("-R", "--run")
+parser.add_argument("-P", "--processes")
 args = vars(parser.parse_args())
 
-rem_sampls = args["rem_sampls"].split(",")
+project, rem_sampls, run, processes = (
+    args["project"],
+    args["rem_sampls"],
+    args["run"],
+    args["processes"],
+)
+
+rem_sampls = rem_sampls.split(",")
 
 if not os.path.exists("temp_fold"):
     os.mkdir("temp_fold")
@@ -27,12 +35,12 @@ sampleNames = list(
 )
 sampleNames = [sampleName for sampleName in sampleNames if sampleName not in rem_sampls]
 
-with multiprocessing.Pool(len(sampleNames)) as pool:
+with multiprocessing.Pool(int(processes)) as pool:
     pool.map(
         concatenate_files,
-        [(sampleName, listFiles, args["run"]) for sampleName in sampleNames],
+        [(sampleName, listFiles, run) for sampleName in sampleNames],
     )
 
-os.system("rm {}/*".format(args["project"]))
-os.system("mv temp_fold/* {}".format(args["project"]))
+os.system("rm {}/*".format(project))
+os.system("mv temp_fold/* {}".format(project))
 os.system("rm -r temp_fold")

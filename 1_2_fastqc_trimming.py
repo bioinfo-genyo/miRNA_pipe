@@ -14,13 +14,20 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-I", "--input-dir")
 parser.add_argument("-A", "--adapter")
 parser.add_argument("-R", "--run")
-parser.add_argument("-L", "--slow") # Much slower processing, but less memory-intensive.
+parser.add_argument(
+    "-L", "--slow"
+)  # Much slower processing, but less memory-intensive.
+parser.add_argument("-P", "--processes")
 args = vars(parser.parse_args())
 
-input_dir = args["input_dir"]
-adapter = args["adapter"]
-run = args["run"]
-slow = args["slow"]
+input_dir, adapter, run, slow, processes = (
+    args["input_dir"],
+    args["adapter"],
+    args["run"],
+    args["slow"],
+    args["processes"],
+)
+processes = int(processes)
 
 filenames = list_dir_files(input_dir, "fastq.gz")
 sample_names = get_sample_name(filenames)
@@ -41,10 +48,10 @@ mkdir("05_plot")
 if slow == "1":
     sample_dict = trimming_files_slow(sample_dict, adapter, run)
 else:
-    eval_fastq_files(sample_dict, "FastQC/Raw", adapter, run)
+    eval_fastq_files(sample_dict, "FastQC/Raw", adapter, run, processes)
     sample_dict = trimming_files(sample_dict, adapter, run)
-    eval_fastq_files(sample_dict, "FastQC/Trim", "None", run)
-    get_stats_fastq_files(sample_dict, run)
+    eval_fastq_files(sample_dict, "FastQC/Trim", "None", run, processes)
+    get_stats_fastq_files(sample_dict, run, processes)
 
 with open("00_log/1_2_fastq.json", "w") as jsonfile:
     json.dump(sample_dict, jsonfile, indent=4)
