@@ -50,7 +50,7 @@ if use_mirbase != "0":
     download_file(use_mirbase, f"{reference_folder}/miRNA.gff3")
     gtf_files["miRNA"] = f"{reference_folder}/miRNA.gff3"
 
-
+# Cuantifies only the miRNAs.
 for biotype in gtf_files:
     gtf_file = gtf_files[biotype]
     sample_files_bio = quantify_biotype(sample_dict, gtf_file, biotype, run, processes)

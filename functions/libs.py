@@ -590,29 +590,33 @@ def filter_gff(gene_loc, biotype, save_path, header, idmapcont_ndict):
         for line in gene_loc
         if line.split("\t")[-1].split("type=")[1].split(";")[0] == biotype
     ]
-    # List to dictionary
+    # List to dictionary. miRNA name as key.
     gene_loc_biotype_dict = {
         line.split("\t")[-1].split("Name=")[1].split("_")[0]: line
         for line in gene_loc_biotype
     }
     # Filter ID
+
+    # Get only the IDs from miRNAs present in the gft file.
     idmapcont_ndict = idmapcont_ndict[biotype]
     idmapcont_ndict = {
         key: idmapcont_ndict[key]
         for key in idmapcont_ndict
         if key in gene_loc_biotype_dict
     }
+
+    # Only miRNAs that appear in RNAcentral.
     gene_loc_biotype_dict = {
         key: gene_loc_biotype_dict[key]
         for key in gene_loc_biotype_dict
         if key in idmapcont_ndict
     }
-    # Remove duplicates
+    # Remove duplicates and formatt the gtf file.
     gene_loc_biotype = []
     for key in gene_loc_biotype_dict:
         line = gene_loc_biotype_dict[key].split("\t")
-        line[2] = biotype
-        line[-1] = "Name={}".format(key)
+        line[2] = biotype  # Correct biotype.
+        line[-1] = "Name={}".format(key)  # Clean last line. Only the name.
         line = "\t".join(line)
         if line not in gene_loc_biotype:
             gene_loc_biotype.append(line)
@@ -621,8 +625,8 @@ def filter_gff(gene_loc, biotype, save_path, header, idmapcont_ndict):
     for line in gene_loc_biotype:
         line = line.split("\t")
         name = line[-1].replace("Name=", "")
-        nname = idmapcont_ndict[name]
-        line[-1] = "Name={}".format(nname)
+        new_name = idmapcont_ndict[name]
+        line[-1] = "Name={}".format(new_name)
         line = "\t".join(line)
         dict_map.append(line)
 
@@ -651,17 +655,26 @@ def prepare_biotypes(reference_folder, gtf, tax, biotypes="miRNA") -> dict[str, 
     import gzip
     import os
 
-    save_path = os.path.join(reference_folder, os.path.basename(gtf))
+    # Downloads the gtf file and saves it in the reference folder.
+    save_path = os.path.join(
+        reference_folder, os.path.basename(gtf)
+    )  # Gets the name of the file and writes the path.
     download_file(gtf, save_path)
     with gzip.open(save_path, "rb") as f:
         file_cont = f.readlines()
     file_cont = [line.decode() for line in file_cont]
+    # Gets the header.
     header = "".join(
         [line for line in file_cont if line.startswith("#") and line != "###\n"]
     )
+    # Opens the rest of the lines.
     gene_loc = [line for line in file_cont if not line.startswith("#")]
+
+    # If biotypes is not already a list, convert it to a list.
+    # If biotypes is "all", convert it to a list of all biotypes in the GTF file.
     if not isinstance(biotypes, list):
         if biotypes == "all":
+            # Get the last column, get to the type propertie, get the value of the type propertie, split all biotype values and remove duplicates.
             biotypes = list(
                 set(
                     [
@@ -672,7 +685,8 @@ def prepare_biotypes(reference_folder, gtf, tax, biotypes="miRNA") -> dict[str, 
             )
         else:
             biotypes = [biotypes]
-
+    # Download the id mapping file from EBI's RNAcentral, which maps each entry of the data base with
+    # the corresponding entry in the database where it was obtained from.
     ref = reference_folder.split("/")[0:-1]
     ref = "/".join(ref)
     download_file(
@@ -682,6 +696,7 @@ def prepare_biotypes(reference_folder, gtf, tax, biotypes="miRNA") -> dict[str, 
 
     import subprocess
 
+    # Filter the RNAcentral database based on the taxonomy (9606 for human).
     if not os.path.exists(f"{reference_folder}/id_map.tsv.gz"):
         subprocess.run(
             f"zcat {ref}/id_mapping.tsv.gz | grep {tax} >{reference_folder}/id_map.tsv",
@@ -698,10 +713,12 @@ def prepare_biotypes(reference_folder, gtf, tax, biotypes="miRNA") -> dict[str, 
     #     idmapcont_pref = list(set([line.split("\t")[1] for line in idmapcont if line.split("\t")[4] == pref]))
     #     preferences[pref].extend(idmapcont_pref)
 
+    # For each biotype, filter the GTF file based on the prefered database.
     preferences = {"miRNA": "MIRBASE"}
     idmapcont_ndict = {}
     for pref in preferences:
         idmapcont_ndict[pref] = {
+            # Keep the ID of RNAcentral and MIRBASE if it is indeed a mirbase entry.
             line.split("\t")[0]: line.split("\t")[2]
             for line in res
             if line.split("\t")[4] == pref and line.split("\t")[1] == preferences[pref]
@@ -816,7 +833,7 @@ def get_mirna_counts(args) -> dict[str, dict[str, any]]:
 
     # The output is a dictionary with the sample name as key and as a value, another dictionary with 2 key-value pairs.
     # The first key is "mirna" and the value is a dictionary with the miRNA as key and the number of occurrences as value.
-    # The second key is "file" and the value is the name of the output file.
+    # The second key is "file" and the value is the name of the output fastq with the unassingned miRNAs.
     return {sample_name: {"mirna": mirna_seqs_counts, "file": outfile}}
 
 
@@ -852,6 +869,7 @@ def mirbase_sequence_assign(
             ],
         )
 
+    # Converts sample_files and mirna_counts to standard python dictionaries.
     sample_files = dict(collections.ChainMap(*sample_files))
     mirna_counts = dict(
         collections.ChainMap(
@@ -874,7 +892,7 @@ def mirbase_sequence_assign(
 
 def run_aligning(args) -> dict[str, str]:
     """
-    Run aligning with the given arguments.
+    Run aligning with the given arguments using bowtie.
 
     Args:
         args (tuple): A tuple containing sample_name, fastq_file, index, num_threads, and run.
@@ -886,8 +904,14 @@ def run_aligning(args) -> dict[str, str]:
     import subprocess
 
     sample_name, fastq_file, index, num_threads, run = args
+
+    # We obtain 3 files per sample:
+
+    # The bowtie log file, containing info about the aligment.
     logBowtie = f"00_log/{sample_name}.bowtie"
+    # The sorted bam file.
     outBam = f"03_bam/{sample_name}.bam"
+    # The flagstats for each bam file.
     outDedupLog = f"00_log/{sample_name}.flagstats"
     if run == "1":
         # bowtie -f -n $mismatches_seed -e 80 -l 18 -a -m $mapping_loc --best --strata $file_genome_latest $file_reads_latest $dir/mappings.bwt\n\n";
@@ -952,11 +976,18 @@ def get_map_quality(args) -> None:
     """
 
     sample_name, mirna_counts, run = args
+
+    # Gets number of reads previously assigned to miRNAs.
     mirna_counts = sum(mirna_counts.values())
 
+    # Reads the bowtie log file in order to read the number of mapped reads by bowtie
+    # in the unsassinged miRNAs fastq file.
     with open(f"00_log/{sample_name}.bowtie", "r") as f:
         file_cont = f.readlines()
 
+    # Gets the number of mapped reads by bowtie in the underassigned miRNAs fastq file
+    # by parsing the bowtie low file and sums it with the number of counted reads.
+    # It prints the ouptut in the log file.
     mapped_reads = [
         int(line.split(" ")[1]) for line in file_cont if "Reported " in line
     ][0]
