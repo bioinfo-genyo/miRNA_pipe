@@ -611,7 +611,7 @@ def filter_gff(gene_loc, biotype, save_path, header, idmapcont_ndict):
         for key in gene_loc_biotype_dict
         if key in idmapcont_ndict
     }
-    # Remove duplicates and formatt the gtf file.
+    # Remove duplicates and format the gtf file.
     gene_loc_biotype = []
     for key in gene_loc_biotype_dict:
         line = gene_loc_biotype_dict[key].split("\t")
@@ -745,7 +745,7 @@ def filter_mirbase(kegg, ref_file) -> dict[str, list[str]]:
     with open(ref_file, "r") as r:
         fileCont = r.readlines()
 
-    # Creates a dictionary containing onlty the entries with the given KEGG identifier (hsa for human) as key and the miRNA sequence as value.
+    # Creates a dictionary containing only the entries with the given KEGG identifier (hsa for human) as key and the miRNA sequence as value.
     fileCont = {
         fileCont[i].rstrip(): fileCont[i + 1].rstrip()  # Removes the \n character.
         for i in range(0, len(fileCont), 2)
@@ -758,7 +758,7 @@ def filter_mirbase(kegg, ref_file) -> dict[str, list[str]]:
         fileCont[key].replace("U", "T"): [
             key.split(" ")[0].replace(">", ""),
             key.split(" ")[1],
-        ]
+        ]  # The value is both the name and the mirbase ID in a list.
         for key in fileCont
     }
     return fileCont
@@ -1115,6 +1115,7 @@ def quantify_mirnas(args) -> None:
     assigned = int(
         [line.split("\t")[1].rstrip() for line in file_cont if "Assigned" in line][0]
     )
+    # Sums the number of assigned reads by the script and by featureCounts.
     assigned = assigned + mirna_counts
     if run == "1":
         log_file = f"00_log/{sample_name}.log"
@@ -1156,7 +1157,7 @@ def quantify_samples(sample_dict, mirna_counts, run, processes="sample") -> None
 
 def concat_mirna(args) -> dict[any, str]:
     """
-    Concatenate miRNA data from different sources and write the combined counts to a file.
+    Concatenate miRNA counts from different sources and write the combined counts to a file.
 
     Args:
         args (tuple): A tuple containing sample_name (str), count_file (str), mirna_counts (dict), use_mirbase (str), and mirbaseDB (dict).
@@ -1164,41 +1165,62 @@ def concat_mirna(args) -> dict[any, str]:
     Returns:
         dict: A dictionary containing the sample name as key and the file path as value.
     """
+    # Count file is the output from featureCounts and miRNA the output from the script.
+    # Remember: mirbaseDB si the output from the filter_mirbase function.
+    # The use_mirbase is a flag to use mirBase or not for filtering the counts.
 
+    # Unpack the arguments.
     sample_name, count_file, mirna_counts, use_mirbase, mirbaseDB = args
     print(count_file)
     with open(count_file) as f:
         read_count = f.readlines()
 
+    # Get a list with only the count lines.
     read_count = [
         line
         for line in read_count
         if not line.startswith("#") and not line.startswith("Geneid")
     ]
+
+    # Get only the miRNA name an the count value and create a dictionary.
     read_count = {
         line.split("\t")[0]: int(line.split("\t")[-1].rstrip()) for line in read_count
     }
     read_count = {key: read_count[key] for key in read_count if read_count[key] > 0}
 
+    # This is the part that sums the output of each counting method in the same variable for each miRNA.
+    # If use_mirbase is not 0 (true), only the counts identified with the standard miRNA name will be added (featureCounts was used with a gtf file) and Name option was specified.
+    # Uf use_mirbase is 0 (false), counts from featureCounts are identified by the mirBase ID because no gtf file was used.
     if use_mirbase != "0":
-        mirbaseDBCounts = [mirbaseDB[key][0] for key in mirbaseDB]
+        mirbaseDBCounts = [
+            mirbaseDB[key][0] for key in mirbaseDB
+        ]  # Keep all mirbase names in a list.
+        # Creates an empty dictionary where all counts will be stored.
         counts = {}
         for mirna in mirbaseDBCounts:
             counts[mirna] = 0
+            # Adds the counts from featureCounts.
             if mirna in read_count:
                 counts[mirna] += read_count[mirna]
+            # Adds the counts from the script.
             if mirna in mirna_counts:
                 counts[mirna] += mirna_counts[mirna]
         counts = {key: counts[key] for key in counts if counts[key] > 0}
     else:
+        # This time storages the mirbase ID as keys and the miRNA names as values in a dictionary
+        # This times uses the mirbaseID to access the output from featureCounts.
         mirbaseDBCounts = {mirbaseDB[key][1]: mirbaseDB[key][0] for key in mirbaseDB}
         counts = {}
+        # mirna is the mirbaseDB ID and mirna_alt is the miRNA name.
         for mirna, mirna_alt in mirbaseDBCounts.items():
             counts[mirna_alt] = 0
             if mirna in read_count:
+                # Adds the counts of the miRNAs identified with the mirbase ID.
                 counts[mirna_alt] += read_count[mirna]
             if mirna_alt in mirna_counts:
                 counts[mirna_alt] += mirna_counts[mirna_alt]
+
+        # Returns only the miRNAs with counts greater than 0 combining the counts from both methods.
         counts = {key: counts[key] for key in counts if counts[key] > 0}
 
     with open(f"04_counts/{sample_name}_miRNA_concat.txt", "w") as f:
@@ -1248,3 +1270,63 @@ def concat_mirna_samples(
         )
     sample_dict = dict(collections.ChainMap(*sample_dict))
     return sample_dict
+
+
+def merge_count_files(run) -> None:
+    """
+    Merge count files into a single count matrix TSV file.
+
+    Args:
+        run (str): The run number.
+
+    Returns:
+        None
+    """
+
+    if run == "1":
+        import os
+        import pandas as pd
+        import re
+
+        # Define the directory containing the count files
+        directory = "04_counts/"
+
+        # Get a list of all count files in the directory
+        count_files = sorted(
+            [
+                file
+                for file in os.listdir(directory)
+                if file.endswith("_miRNA_concat.txt")
+            ]
+        )
+
+        # Initialize an empty DataFrame to store the merged data
+        merged_data = pd.DataFrame(columns=["miRNA"])
+
+        # Loop through each count file
+        for file in count_files:
+            # Read the count file into a DataFrame
+            df = pd.read_csv(os.path.join(directory, file), delimiter="\t")
+
+            # Extract the filename (excluding the file extension) to use as column header
+            filename = re.sub(r"_miRNA_concat\.txt$", "", file)
+
+            # Rename the columns, excluding the first column (miRNA)
+            df.columns = ["miRNA"] + [filename for col in df.columns[1:]]
+
+            # Merge the DataFrame with the merged_data DataFrame, using the miRNA column as the key
+            merged_data = pd.merge(merged_data, df, on="miRNA", how="outer")
+
+        # Convert all non-integer values to NaN and then replace NaN with 0
+        for col in merged_data.columns[1:]:
+            merged_data[col] = (
+                merged_data[col]
+                .apply(pd.to_numeric, errors="coerce")
+                .fillna(0)
+                .astype(int)
+            )
+
+        # Write the merged data to a new TSV file
+        merged_data.to_csv(
+            os.path.join(directory, "count_matrix.tsv"), sep="\t", index=False
+        )
