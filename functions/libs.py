@@ -1305,6 +1305,7 @@ def merge_count_files(suffix, run, folder_path="04_counts/") -> None:
 
             # Extract the filename (excluding the file extension) to use as column header
             filename = re.sub(rf"{suffix}", "", file)
+            filename = filename.replace("-", "_")
 
             # Rename the columns, excluding the first column (miRNA)
             df.columns = ["miRNA"] + [filename for col in df.columns[1:]]
@@ -1327,11 +1328,11 @@ def merge_count_files(suffix, run, folder_path="04_counts/") -> None:
         )
 
 
-def create_colData(codes, suffix, read_type, run, folder_path="04_counts/") -> None:
+def create_colData(groups, suffix, read_type, run, folder_path="04_counts/") -> None:
     """
-    Create colData file for DESeq2 based on the given codes, suffix, and read_type, and store it in a TSV file in the specified folder_path.
+    Create colData file for DESeq2 based on the given groups, suffix, and read_type, and store it in a TSV file in the specified folder_path.
     Parameters:
-    - codes: list of codes to match in the file names. They are used to recognise the sample group.
+    - groups: list of groups to match in the file names. They are used to recognise the sample group.
     - suffix: file suffix to match and remove thereafter.
     - read_type: single-read or pair-end.
     - folder_path: path of the folder where the files and TSV file will be stored (default is "04_counts/")
@@ -1350,10 +1351,10 @@ def create_colData(codes, suffix, read_type, run, folder_path="04_counts/") -> N
         )
 
         # Create a list to store the data
-        data = [["sample", "condition", "type"]]
+        data = [["sample", "group", "type"]]
 
         # Define the regular expression pattern
-        pattern = rf".+({'|'.join(codes)}).+"
+        pattern = rf".+({'|'.join(groups)}).+"
 
         # Loop through each file
         for file in files:
@@ -1364,12 +1365,13 @@ def create_colData(codes, suffix, read_type, run, folder_path="04_counts/") -> N
             if match:
                 # Extract the filename (excluding the file extension) to use as column header
                 filename = re.sub(rf"{suffix}", "", file)
+                filename = filename.replace("-", "_")
 
-                # Get the PRE or POST code
-                code = match.group(1)
+                # Get the group name:
+                group = match.group(1)
 
                 # Add the data to the list
-                data.append([filename, code, read_type])
+                data.append([filename, group, read_type])
 
         # Create the TSV file
         with open(f"{folder_path}/colData.tsv", "w") as f:

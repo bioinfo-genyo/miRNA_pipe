@@ -8,7 +8,6 @@ from functions.libs import (
     concat_mirna_samples,
     quantify_biotype,
     quantify_samples,
-    merge_count_files,
 )
 
 parser = argparse.ArgumentParser()
