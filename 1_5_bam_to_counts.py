@@ -60,6 +60,3 @@ for biotype in gtf_files:
         sample_files_bio = concat_mirna_samples(
             sample_files_bio, mirna_counts, use_mirbase, mirbaseDB, processes
         )
-
-# Merges all the sample counts to create the count matrix.
-merge_count_files(run)

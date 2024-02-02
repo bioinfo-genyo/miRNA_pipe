@@ -1272,12 +1272,14 @@ def concat_mirna_samples(
     return sample_dict
 
 
-def merge_count_files(run) -> None:
+def merge_count_files(suffix, run, folder_path="04_counts/") -> None:
     """
-    Merge count files into a single count matrix TSV file.
+    Merge count files with the given suffix and store the result in a new TSV file.
 
     Args:
+        suffix (str): The file suffix to filter count files.
         run (str): The run number.
+        folder_path (str, optional): The folder path where the count files are stored. Defaults to "04_counts/".
 
     Returns:
         None
@@ -1288,16 +1290,9 @@ def merge_count_files(run) -> None:
         import pandas as pd
         import re
 
-        # Define the directory containing the count files
-        directory = "04_counts/"
-
         # Get a list of all count files in the directory
         count_files = sorted(
-            [
-                file
-                for file in os.listdir(directory)
-                if file.endswith("_miRNA_concat.txt")
-            ]
+            [file for file in os.listdir(folder_path) if file.endswith(suffix)]
         )
 
         # Initialize an empty DataFrame to store the merged data
@@ -1306,10 +1301,10 @@ def merge_count_files(run) -> None:
         # Loop through each count file
         for file in count_files:
             # Read the count file into a DataFrame
-            df = pd.read_csv(os.path.join(directory, file), delimiter="\t")
+            df = pd.read_csv(os.path.join(folder_path, file), delimiter="\t")
 
             # Extract the filename (excluding the file extension) to use as column header
-            filename = re.sub(r"_miRNA_concat\.txt$", "", file)
+            filename = re.sub(rf"{suffix}", "", file)
 
             # Rename the columns, excluding the first column (miRNA)
             df.columns = ["miRNA"] + [filename for col in df.columns[1:]]
@@ -1328,5 +1323,55 @@ def merge_count_files(run) -> None:
 
         # Write the merged data to a new TSV file
         merged_data.to_csv(
-            os.path.join(directory, "count_matrix.tsv"), sep="\t", index=False
+            os.path.join(folder_path, "count_matrix.tsv"), sep="\t", index=False
         )
+
+
+def create_colData(codes, suffix, read_type, run, folder_path="04_counts/") -> None:
+    """
+    Create colData file for DESeq2 based on the given codes, suffix, and read_type, and store it in a TSV file in the specified folder_path.
+    Parameters:
+    - codes: list of codes to match in the file names. They are used to recognise the sample group.
+    - suffix: file suffix to match and remove thereafter.
+    - read_type: single-read or pair-end.
+    - folder_path: path of the folder where the files and TSV file will be stored (default is "04_counts/")
+    Returns:
+    - None
+    """
+
+    if run == "1":
+
+        import os
+        import re
+
+        # Get all files in the folder
+        files = sorted(
+            [file for file in os.listdir(folder_path) if file.endswith(suffix)]
+        )
+
+        # Create a list to store the data
+        data = [["sample", "condition", "type"]]
+
+        # Define the regular expression pattern
+        pattern = rf".+({'|'.join(codes)}).+"
+
+        # Loop through each file
+        for file in files:
+            # Match the file name against the pattern
+            match = re.match(pattern, file)
+
+            # If the file name matches the pattern
+            if match:
+                # Extract the filename (excluding the file extension) to use as column header
+                filename = re.sub(rf"{suffix}", "", file)
+
+                # Get the PRE or POST code
+                code = match.group(1)
+
+                # Add the data to the list
+                data.append([filename, code, read_type])
+
+        # Create the TSV file
+        with open(f"{folder_path}/colData.tsv", "w") as f:
+            for row in data:
+                f.write(f"{row[0]}\t{row[1]}\t{row[2]}\n")
