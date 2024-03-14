@@ -1,8 +1,8 @@
 import argparse
 from functions.libs import merge_count_files, create_colData, mkdir
 
-# This function parsers the 1_5_bam_to_counts.py output files and creates the input formats for DESeq2.
-# Suffix
+# This script parsers the 1_5_bam_to_counts.py output files and creates the input formats for DESeq2.
+# Suffix: The file suffix to filter count files.
 # If colData is set to 1, it also creates the colData file.
 # groups should be input as a comma-separated string, being recognizable patterns in the file names to identify the sample group.
 # If folder_path is not provided, it defaults to "04_counts/"
@@ -48,5 +48,4 @@ if colData == "1":
     )
 
 # Creates the output folder if it doesn't exist.
-
 mkdir("06_output/")
