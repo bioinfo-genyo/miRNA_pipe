@@ -11,7 +11,7 @@ from functions.libs import (
 )
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-I", "--input-dir")
+parser.add_argument("-I", "--input_dir")
 parser.add_argument("-A", "--adapter")
 parser.add_argument("-R", "--run")
 parser.add_argument(
