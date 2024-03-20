@@ -58,9 +58,9 @@ else:
     get_stats_fastq_files(sample_dict, run, processes)
 
 if append == "1":
-    mode = "a"
-else:
-    mode = "w"
+    with open("00_log/1_2_fastq.json", "r") as jsonfile:
+        old_sample_dict = json.load(jsonfile)
+        sample_dict = old_sample_dict.update(sample_dict)
 
-with open("00_log/1_2_fastq.json", mode) as jsonfile:
+with open("00_log/1_2_fastq.json", "w") as jsonfile:
     json.dump(sample_dict, jsonfile, indent=4)
