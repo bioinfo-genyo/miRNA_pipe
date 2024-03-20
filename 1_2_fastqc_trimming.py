@@ -18,14 +18,16 @@ parser.add_argument(
     "-L", "--slow"
 )  # Much slower processing, but less memory-intensive.
 parser.add_argument("-P", "--processes")
+parser.add_argument("-a", "--append_sample_dict")
 args = vars(parser.parse_args())
 
-input_dir, adapter, run, slow, processes = (
+input_dir, adapter, run, slow, processes, append = (
     args["input_dir"],
     args["adapter"],
     args["run"],
     args["slow"],
     args["processes"],
+    args["append_sample_dict"],
 )
 
 if processes:
@@ -55,5 +57,10 @@ else:
     eval_fastq_files(sample_dict, "FastQC/Trim", "None", run, processes)
     get_stats_fastq_files(sample_dict, run, processes)
 
-with open("00_log/1_2_fastq.json", "w") as jsonfile:
+if append == "1":
+    mode = "a"
+else:
+    mode = "w"
+
+with open("00_log/1_2_fastq.json", mode) as jsonfile:
     json.dump(sample_dict, jsonfile, indent=4)
