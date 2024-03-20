@@ -8,7 +8,7 @@ parser.add_argument("-F", "--fasta")
 parser.add_argument("-R", "--ref")
 args = vars(parser.parse_args())
 
-fasta, ref = args
+fasta, ref = (args["fasta"], args["ref"])
 
 destfile = f"{ref}/{os.path.basename(fasta)}"
 download_file(fasta, destfile)

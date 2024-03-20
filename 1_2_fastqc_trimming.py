@@ -51,7 +51,7 @@ if slow == "1":
     sample_dict = trimming_files_slow(sample_dict, adapter, run)
 else:
     eval_fastq_files(sample_dict, "FastQC/Raw", adapter, run, processes)
-    sample_dict = trimming_files(sample_dict, adapter, run)
+    sample_dict = trimming_files(sample_dict, adapter, run, processes)
     eval_fastq_files(sample_dict, "FastQC/Trim", "None", run, processes)
     get_stats_fastq_files(sample_dict, run, processes)
 
