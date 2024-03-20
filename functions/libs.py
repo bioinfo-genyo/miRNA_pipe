@@ -1354,7 +1354,7 @@ def create_colData(groups, suffix, read_type, run, folder_path="04_counts/") -> 
         data = [["sample", "group", "type"]]
 
         # Define the regular expression pattern
-        pattern = rf".+({'|'.join(groups)}).+"
+        pattern = rf".*({'|'.join(groups)}).*"
 
         # Loop through each file
         for file in files:
