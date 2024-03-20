@@ -59,8 +59,9 @@ else:
 
 if append == "1":
     with open("00_log/1_2_fastq.json", "r") as jsonfile:
-        old_sample_dict = json.load(jsonfile)
-        sample_dict = old_sample_dict.update(sample_dict)
+        appendix = sample_dict
+        sample_dict = json.load(jsonfile)
+        sample_dict.update(appendix)
 
 with open("00_log/1_2_fastq.json", "w") as jsonfile:
     json.dump(sample_dict, jsonfile, indent=4)
