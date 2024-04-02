@@ -1,7 +1,5 @@
 from typing import Generator, Literal
 
-from networkx import number_of_nonisomorphic_trees
-
 
 def detect_paired_single(sampleName, listFiles) -> Literal["paired", "single"]:
     """
@@ -16,7 +14,8 @@ def detect_paired_single(sampleName, listFiles) -> Literal["paired", "single"]:
     sampleFiles = [
         sampleFile
         for sampleFile in listFiles
-        if sampleName in sampleFile and "_L001_" in sampleFile
+        if sampleName in sampleFile
+        and "_L001_" in sampleFile  # Detects illumina standard file naming.
     ]
     if len(sampleFiles) == 2:
         return "paired"
@@ -68,6 +67,7 @@ def concatenate_files(args) -> dict[any, dict[any, any]]:
     """
     Concatenates files based on sample name and list of files and returns a dictionary
     containing sample name and corresponding files.
+    This function is thought to concatenate lane-split files.
 
     Args:
         args (tuple): A tuple containing sample name, list of files, and a run number.
@@ -81,24 +81,32 @@ def concatenate_files(args) -> dict[any, dict[any, any]]:
 
     sampleName, listFiles, run = args
     paired_or_single = detect_paired_single(sampleName, listFiles)
+    # Create the strands list to add to the sample name.
     if paired_or_single == "paired":
         strands = ["R1", "R2"]
     else:
         strands = ["R1"]
     sampleDict = {}
+    # Change the sample name to the required format (remove "-" and replace with "_" for R compatibility)
     sampleName_change = sampleName.replace("-", "_")
+    # List all the files associated with the sample name.
     sampleFiles = [sampleFile for sampleFile in listFiles if sampleName in sampleFile]
+    # Concatenate the files of different strands separated.
     for strand in strands:
         input_files = [sampleFile for sampleFile in sampleFiles if strand in sampleFile]
         input_files.sort()
         output_file = "temp_fold/" + os.path.basename(
-            input_files[0].replace("_L001_", "_")
+            input_files[0].replace(
+                "_L001_", "_"
+            )  # Names the output file as the input files without the lane information.
         )
-        output_file = output_file.replace("-", "_").replace(".gz", "")
+        output_file = output_file.replace("-", "_").replace(
+            ".gz", ""
+        )  # Replaces the "-" and ".gz" with "_" in the name.
         if run == "1":
             if os.path.exists(output_file + ".gz"):
                 os.remove(output_file + ".gz")
-            zcat_files(output_file, input_files)
+            zcat_files(output_file, input_files)  # Concatenate and compress the files.
         sampleDict[strand] = output_file + ".gz"
     return {sampleName_change: sampleDict}
 
@@ -157,18 +165,21 @@ def download_file(url, filename, force=False) -> None:
     import requests
     import tqdm
 
+    # First check if the file already exists.
     if (
         not os.path.exists(filename)
         and not os.path.exists(filename.replace(".gz", ""))
         and not os.path.exists(filename + ".gz")
-    ) or force:
+    ) or force:  # Force download.
         rm_file(filename)
         rm_file(filename.replace(".gz", ""))
         with open(filename, "wb") as f:
+            # request is a library for making HTTP requests.
             with requests.get(url, stream=True) as r:
                 r.raise_for_status()
+                # Get progress information for tqdm.
                 total = int(r.headers.get("content-length", 0))
-
+                # tqdm is a progress verbose (progress bar, performing step...) library.
                 # tqdm has many interesting parameters. Feel free to experiment!
                 tqdm_params = {
                     "desc": url,
@@ -203,6 +214,7 @@ def get_sample_name(file_names) -> list[any]:
 
 
 def read_gzfile(filename) -> Generator[bytes | str, any, None]:
+    # The use of a generator allows better memory management (loads the file in chunks).
     """
     Function to read a gz file
     """
@@ -233,7 +245,7 @@ def write_log(logfile, text, mode) -> None:
 
 def eval_fastq_file(args) -> None:
     """
-    Function to evaluate a fastq file.
+    Function to evaluate a fastq file. It outputs the number of raw reads in the fastq file and the number of reads after trimming.
     Takes arguments for sample name, sample dictionary, output, adapter, threads, and run.
     """
 
@@ -285,6 +297,7 @@ def eval_fastq_files(sample_dict, output, adapter, run, processes="sample") -> N
         None: This function does not return anything.
     """
 
+    # By the default the number of processes is set to the number of samples in order to maximize the parallelization.
     if processes == "sample":
         processes = len(sample_dict)
 
@@ -315,7 +328,7 @@ def remove_umi_delete_adapter(fastq_file, adapter, outfile) -> int:
 
     Args:
     fastq_file (str): The input fastq file path.
-    adapter (str): The adapter sequence to be removed.
+    adapter (str): The adapter sequence to be removed. WARNING: If the adapter sequence is not correct, the function will output an empty file.
     outfile (str): The output file path to save the processed data.
 
     Returns:
@@ -325,26 +338,39 @@ def remove_umi_delete_adapter(fastq_file, adapter, outfile) -> int:
     import gzip
     import numpy as np
 
+    # Creates a list of lines from the fastq file. The file is contained in a generator that will only read the lines when requested.
     lines_list = read_gzfile(fastq_file)
+    # Because the fastq file has 4 lines per sequence, the numpy array is used to split the list into chunks of 4 lines with the zip function.
     gzip_cont = np.array(list(zip(*[lines_list] * 4)))
+    # Create a variable to store the unique sequences.
     unique_elements = set()
+    # Create a variable to store the processed reads.
     filtered_lines = []
+    # Create a variable to store the duplicated reads for logging purposes.
     duplicated_lines = []
+    # Loop through each sequence and check if the adapter is in the sequence. If it is, remove the adapter (+ the UMI) from the sequence and add the new sequence and quality to the list of processed reads.
     for sublist in gzip_cont:
+        # Unpack the sequence and quality from the sublist.
         seq, quality = sublist[1], sublist[3]
         if seq not in unique_elements:
+            # WARNING: If the adapter sequence is not correct, the function will output an empty file.
             if adapter in seq:
                 unique_elements.add(seq)
+                # Find the adapter start position in the read.
                 idx_pos = seq.rfind(adapter)
+                # Remote all bases from that position to the end.
                 seq_wo_adapter = seq[:idx_pos]
                 quality_wo_adapter = quality[:idx_pos]
+                # Add the new sequence and quality to the list of processed reads.
                 sublist[1] = seq_wo_adapter
                 sublist[3] = quality_wo_adapter
                 filtered_lines.append(sublist)
         else:
             duplicated_lines.append(seq)
+    # Counts repeated reads. The unique_dup list contains the unique set of duplicated reads to take into account the ones that have been processed.
     unique_dup = list(set(duplicated_lines))
     duplicated_lines = len(duplicated_lines) + len(unique_dup)
+    # Creates a new gzip file with the processed un-duplicated reads.
     gzip_cont = "\n".join(["\n".join(seq) for seq in filtered_lines])
     with gzip.open(outfile, "wb") as f:
         f.write(gzip_cont.encode())
@@ -353,7 +379,7 @@ def remove_umi_delete_adapter(fastq_file, adapter, outfile) -> int:
 
 def run_trimming(args) -> dict[any, str]:
     """
-    Trims the given fastq file using umi removal and cutadapt.
+    Trims the given fastq file using umi removal for adapter and umi removal and cutadapt for quality trimming.
     Args:
         args (tuple): A tuple containing sample_name, fastq_file, adapter, num_threads, and run.
     Returns:
@@ -363,11 +389,17 @@ def run_trimming(args) -> dict[any, str]:
     import subprocess
 
     sample_name, fastq_file, adapter, num_threads, run = args
+
+    # For each step, the file name is updated to indicate the process performed over the sample.
+    # This file name change is registered in a variable called sample_dict. This is a dictionary with sample_name as key and fastq_file path as a value.
+    # That variable is the key for the integration of all the functions in the pipeline, as it allows the correct localization of the appropriate file for each step.
     outFileUMI = f"02_trim/{sample_name}_umi.fastq.gz"
     outFileCut = f"02_trim/{sample_name}_trimmed.fastq.gz"
     if run == "1":
         print("Running umi removal {}".format(fastq_file))
         duplicated_lines = remove_umi_delete_adapter(fastq_file, adapter, outFileUMI)
+
+        # Updates the log for that sample.
         mode = "a"
         text = "############ DUPS READS ##############\n\n"
         log_file = f"00_log/{sample_name}.log"
@@ -375,13 +407,20 @@ def run_trimming(args) -> dict[any, str]:
         mode = "a"
         text = f"{sample_name} has {duplicated_lines} duplicated reads\n\n"
         write_log(log_file, text, mode)
+
+        # Cutadapt is used for quality trimming
         print("Running cutadapt {}".format(fastq_file))
         subprocess.run(
             f"cutadapt --quiet -j {num_threads} -m 10 -M 40 -q 10 {outFileUMI} -o {outFileCut}",
             shell=True,
         )
 
+    # Remove the intermediate files
     rm_file(outFileUMI)
+    # Returns a dict containing the sample name as key and the trimmed fastq file as value.
+    # This would be the basic return value for the functions in order to build the sample dict.
+    # This dict relates the sample names (the identifier the functions work with) with the path of the file in order to be find by the function calls.
+    # After each step, this dict is updated with the new file names for each samples as processing steps are performed over them.
     return {sample_name: outFileCut}
 
 
@@ -415,6 +454,8 @@ def trimming_files(sample_dict, adapter, run, processes="sample") -> dict[any, s
                 for sample_name in sample_dict
             ],
         )
+
+    # Collects all the generated sample_dict outputs from each call to run_trimming and creates a single dictionary where the keys are the sample name and the values the file paths for each sample. For each step, the file name is updated to indicate the performed process. In this case, teh suffix "_trimmed is added".
     sample_dict = dict(collections.ChainMap(*sample_dict))
     return sample_dict
 
@@ -436,6 +477,7 @@ def trimming_files_slow(sample_dict, adapter, run) -> dict[any, any]:
 
     num_threads = cpu_count()
 
+    # Im case the RAM is not enough, only one sample is processed at a time.
     trimmed_dict = {}
     for sample_name in sample_dict:
         trimmed_dict.update(
@@ -453,6 +495,7 @@ def convert_quality_to_numeric(quality_str) -> list[int]:
     """
 
     # Convert ASCII quality scores to numeric values
+    # ord obtains the ASCII value of a character.
     quality_str_num = [ord(str(char)) - 33 for char in quality_str]
     return quality_str_num
 
@@ -467,29 +510,36 @@ def get_fastq_stats(args):
         import numpy
         import numpy as np
 
+        # Follows the same strategy for file reading as in eval_fastq_file.
         lines = read_gzfile(fastq)
         gzip_cont = np.array(list(zip(*[lines] * 4)))
         quali_seq = [line[3].rstrip() for line in gzip_cont]
         read_quality = [convert_quality_to_numeric(seq) for seq in quali_seq]
+
+        # Obtains the maximum length of a read.
         read_lengths = [len(qual) for qual in read_quality]
         max_i = max(read_lengths)
+
+        # Creates a dictionary to store teh quality and length statistics for each sample.
         quality_stats = {}
         lengths_stats = {}
-        for pos in range(1, max_i + 1):
-            qual = numpy.array(
-                [seq[pos - 1] for seq in read_quality if len(seq) >= pos]
-            )
+
+        # Calculates the mean, median, and standard deviation of the quality scores for each position.
+        # It uses numpy arrays to perform the calculations quickly.
+        for pos in range(0, max_i + 1):  # +1 to include the last position.
+            qual = numpy.array([seq[pos] for seq in read_quality if len(seq) >= pos])
             mean_qual = numpy.mean(qual)
             median_qual = numpy.median(qual)
             sd_qual = numpy.std(qual)
             quality_stats[str(pos)] = {
-                "nreads": len(qual),
-                "median": median_qual,
-                "mean": mean_qual,
-                "sd": sd_qual,
+                "nreads": len(qual),  # number of reads.
+                "median": median_qual,  # median of the quality scores.
+                "mean": mean_qual,  # mean of the quality scores.
+                "sd": sd_qual,  # standard deviation of the quality scores.
             }
             lengths_stats[str(pos)] = read_lengths.count(pos)
 
+        # Write the statistics to the log file.
         logfile = f"00_log/{sample_name}.log"
         mode = "a"
         ### quality stats
@@ -543,7 +593,7 @@ def get_stats_fastq_files(sample_dict, run, processes="sample") -> None:
 
 def prepare_ref(fasta, ref) -> None:
     """
-    Prepares reference genome index for mapping.
+    Prepares reference genome index for mapping using bowtie-build.
 
     Args:
         fasta (str): The path to the fasta file.
@@ -674,7 +724,7 @@ def prepare_biotypes(reference_folder, gtf, tax, biotypes="miRNA") -> dict[str, 
     # If biotypes is "all", convert it to a list of all biotypes in the GTF file.
     if not isinstance(biotypes, list):
         if biotypes == "all":
-            # Get the last column, get to the type propertie, get the value of the type propertie, split all biotype values and remove duplicates.
+            # Get the last column, get to the type properties, get the value of the type properties, split all biotype values and remove duplicates.
             biotypes = list(
                 set(
                     [
@@ -770,6 +820,9 @@ def get_mirna_counts(args) -> dict[str, dict[str, any]]:
     It processes the fastq_file to count the occurrences of different miRNAs based on the provided mirbaseDB.
     The function returns a dictionary containing the sample_name, mirna sequences counts, and the output file.
     """
+    # We use this custom function to count the miRNAs that exact match the sequence in order to reduce de computing time that requires to map and count the reads that have only partial matches to the miRNA sequences.
+    # Associated reads with this functions would be not be taken into account for the mapping steps.
+    # After counting the mapped reads with featureCounts, we will sum the results of both functions in order to get the total number of miRNA counts.
 
     import collections
     import numpy as np
@@ -900,7 +953,9 @@ def run_aligning(args) -> dict[str, str]:
     Returns:
         dict: A dictionary containing the sample_name and the corresponding outBam file.
     """
-
+    # After making a first direct counting using the get_mirna_counts functions in the previous step we have reduced the number of miRNAs that need to be quantify based on their mapping quality.
+    # For that we use featureCounts, which requires the sample to be aligned against the reference genome.
+    # Because we have previously assign a significant portion of the reads, it reduces the computing time expend on the mapping step.
     import subprocess
 
     sample_name, fastq_file, index, num_threads, run = args
@@ -977,7 +1032,7 @@ def get_map_quality(args) -> None:
 
     sample_name, mirna_counts, run = args
 
-    # Gets number of reads previously assigned to miRNAs.
+    # Gets number of reads previously assigned to miRNAs by our custom script.
     mirna_counts = sum(mirna_counts.values())
 
     # Reads the bowtie log file in order to read the number of mapped reads by bowtie
@@ -985,7 +1040,7 @@ def get_map_quality(args) -> None:
     with open(f"00_log/{sample_name}.bowtie", "r") as f:
         file_cont = f.readlines()
 
-    # Gets the number of mapped reads by bowtie in the underassigned miRNAs fastq file
+    # Gets the number of mapped reads by bowtie in the unassigned miRNAs fastq file
     # by parsing the bowtie low file and sums it with the number of counted reads.
     # It prints the ouptut in the log file.
     mapped_reads = [
@@ -1032,7 +1087,7 @@ def quality_mapping_samples(sample_dict, mirna_counts, run, processes="sample") 
 
 def run_featurecount(args) -> dict[any, str]:
     """
-    Function to run featureCounts on a BAM file using subprocess.
+    Function to run featureCounts on a BAM file by calling featureCounts from subread package.
 
     Args:
         args (tuple): A tuple containing sample_name, bam_file, gtf_file, biotype, num_threads, and run.
@@ -1107,6 +1162,7 @@ def quantify_mirnas(args) -> None:
     Returns:
         None
     """
+    # This function gets the number of assigned reads by the script and by featureCounts.
 
     sample_name, mirna_counts, run = args
     mirna_counts = sum(mirna_counts.values())
@@ -1165,6 +1221,7 @@ def concat_mirna(args) -> dict[any, str]:
     Returns:
         dict: A dictionary containing the sample name as key and the file path as value.
     """
+    # This function merges the results from the featureCounts and the get_mirna_count functions.
     # Count file is the output from featureCounts and miRNA the output from the script.
     # Remember: mirbaseDB si the output from the filter_mirbase function.
     # The use_mirbase is a flag to use mirBase or not for filtering the counts.
@@ -1275,6 +1332,8 @@ def concat_mirna_samples(
 def merge_count_files(suffix, run, folder_path="04_counts/") -> None:
     """
     Merge count files with the given suffix and store the result in a new TSV file.
+    This function is intended to be used with the "1_6_merge_count_files.py" script.
+    It gives the count matrix as ouput.
 
     Args:
         suffix (str): The file suffix to filter count files.

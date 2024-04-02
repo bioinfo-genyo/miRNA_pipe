@@ -7,14 +7,14 @@ from functions.libs import concatenate_files
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-D", "--project")
-parser.add_argument("-X", "--rem_sampls")
+parser.add_argument("-X", "--rem_samples")
 parser.add_argument("-R", "--run")
 parser.add_argument("-P", "--processes")
 args = vars(parser.parse_args())
 
 project, rem_sampls, run, processes = (
     args["project"],
-    args["rem_sampls"],
+    args["rem_samples"],
     args["run"],
     args["processes"],
 )
