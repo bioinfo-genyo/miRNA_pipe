@@ -1,3 +1,10 @@
+""" This is the second step of file preparation, to reunite all fastq files from different sequencing projects in one single folder.
+Args:
+    -D, --final-dir (str): Directory to store all the files.
+    -X, --rem-files (str): A comma-separated list of samples to be removed.
+    -P, --project (str): A comma-separated list of the projects' names.
+    -L, --run (str): The run number."""
+
 import argparse
 from functions.libs import list_dir_files, mkdir, copy_files
 

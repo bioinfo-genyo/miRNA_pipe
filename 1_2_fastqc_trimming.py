@@ -1,3 +1,13 @@
+""" This is the first step of the data pre-processing, delete the adapter and UMIs from the reads and trim by quality scores.
+    Args:
+        -I, --input_dir (str): input directory
+        -A, --adapter (str): adapter sequence
+        -R, --run (str): run control variable
+        -L, --slow (str): slow
+        -P, --processes (str): number of processes
+        -a --append_sample_dict (str): append
+"""
+
 import argparse
 import json
 from functions.libs import (
