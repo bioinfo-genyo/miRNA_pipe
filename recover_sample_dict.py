@@ -1,3 +1,9 @@
+""" This is an auxiliary script to recover the sample dictionary.
+
+    Args:
+        -I, --input_dir (str): input directory
+"""
+
 import argparse
 import json
 from functions.libs import list_dir_files, get_sample_name
