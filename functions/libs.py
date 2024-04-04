@@ -1385,7 +1385,7 @@ def merge_count_files(suffix, run, folder_path="04_counts/") -> None:
 
         # Write the merged data to a new TSV file
         merged_data.to_csv(
-            os.path.join(folder_path, "count_matrix.tsv"), sep="\t", index=False
+            os.path.join(folder_path, "count_matrix.csv"), sep="\t", index=False
         )
 
 
@@ -1435,6 +1435,6 @@ def create_colData(groups, suffix, read_type, run, folder_path="04_counts/") -> 
                 data.append([filename, group, read_type])
 
         # Create the TSV file
-        with open(f"{folder_path}/colData.tsv", "w") as f:
+        with open(f"{folder_path}/colData.csv", "w") as f:
             for row in data:
                 f.write(f"{row[0]}\t{row[1]}\t{row[2]}\n")
