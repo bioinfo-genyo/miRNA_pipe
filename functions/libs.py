@@ -967,7 +967,7 @@ def run_aligning(args) -> dict[str, str]:
     # The bowtie log file, containing info about the aligment.
     logBowtie = f"00_log/{sample_name}.bowtie"
     # The sorted bam file.
-    outBam = f"03_bam/{sample_name}.bam"
+    outBam = f"04_bam/{sample_name}.bam"
     # The flagstats for each bam file.
     outDedupLog = f"00_log/{sample_name}.flagstats"
     if run:
@@ -1101,7 +1101,7 @@ def run_featurecount(args) -> dict[any, str]:
     import subprocess
 
     sample_name, bam_file, gff_file, biotype, num_threads, run = args
-    out_name = f"04_counts/{sample_name}_{biotype}.counts.txt"
+    out_name = f"05_counts/{sample_name}_{biotype}.counts.txt"
     if run:
         subprocess.run(
             f"featureCounts -T {num_threads} -t {biotype} -g Name -s 1 -O -a {gff_file} -o {out_name} {bam_file}",
@@ -1168,7 +1168,7 @@ def quantify_mirnas(args) -> None:
 
     sample_name, mirna_counts, run = args
     mirna_counts = sum(mirna_counts.values())
-    with open(f"04_counts/{sample_name}_miRNA.counts.txt.summary", "r") as f:
+    with open(f"05_counts/{sample_name}_miRNA.counts.txt.summary", "r") as f:
         file_cont = f.readlines()
     assigned = int(
         [line.split("\t")[1].rstrip() for line in file_cont if "Assigned" in line][0]
