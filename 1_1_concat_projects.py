@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-I", "--final-dir")
 parser.add_argument("-A", "--rem-files")
 parser.add_argument("-P", "--project")
-parser.add_argument("-L", "--run", type = str, default = "0")
+parser.add_argument("-L", "--run", type=str, default="0")
 args = vars(parser.parse_args())
 
 # Assign the command line arguments to variables.

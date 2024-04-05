@@ -103,7 +103,7 @@ def concatenate_files(args) -> dict[any, dict[any, any]]:
         output_file = output_file.replace("-", "_").replace(
             ".gz", ""
         )  # Replaces the "-" and ".gz" with "_" in the name.
-        if run == "1":
+        if run:
             if os.path.exists(output_file + ".gz"):
                 os.remove(output_file + ".gz")
             zcat_files(output_file, input_files)  # Concatenate and compress the files.
@@ -254,11 +254,11 @@ def eval_fastq_file(args) -> None:
     sample_name, sample_dict, output, adapter, threads, run = args
     import subprocess
 
-    if run == "1":
+    if run:
         subprocess.run(f"fastqc {sample_dict} -o {output} -t {threads}", shell=True)
     log_file = f"00_log/{sample_name}.log"
     if adapter != "None":
-        if run == "1":
+        if run:
             mode = "w"
             text = "############ RAW READS ##############\n\n"
             write_log(log_file, text, mode)
@@ -269,7 +269,7 @@ def eval_fastq_file(args) -> None:
             text = f"{filename} has {int(len(gzip_cont))} reads\n\n"
             write_log(log_file, text, mode)
     else:
-        if run == "1":
+        if run:
             mode = "a"
             text = "############ TRIM READS ##############\n\n"
             write_log(log_file, text, mode)
@@ -281,7 +281,7 @@ def eval_fastq_file(args) -> None:
             write_log(log_file, text, mode)
 
 
-def eval_fastq_files(sample_dict, output, adapter, run, processes="sample") -> None:
+def eval_fastq_files(sample_dict, output, adapter, run, processes=4) -> None:
     """
     Evaluate fastq files using multiprocessing for parallel processing.
 
@@ -298,7 +298,7 @@ def eval_fastq_files(sample_dict, output, adapter, run, processes="sample") -> N
     """
 
     # By the default the number of processes is set to the number of samples in order to maximize the parallelization.
-    if processes == "sample":
+    if processes == 0:
         processes = len(sample_dict)
 
     import multiprocessing
@@ -395,7 +395,7 @@ def run_trimming(args) -> dict[any, str]:
     # That variable is the key for the integration of all the functions in the pipeline, as it allows the correct localization of the appropriate file for each step.
     outFileUMI = f"02_trim/{sample_name}_umi.fastq.gz"
     outFileCut = f"02_trim/{sample_name}_trimmed.fastq.gz"
-    if run == "1":
+    if run:
         print("Running umi removal {}".format(fastq_file))
         duplicated_lines = remove_umi_delete_adapter(fastq_file, adapter, outFileUMI)
 
@@ -424,7 +424,7 @@ def run_trimming(args) -> dict[any, str]:
     return {sample_name: outFileCut}
 
 
-def trimming_files(sample_dict, adapter, run, processes="sample") -> dict[any, str]:
+def trimming_files(sample_dict, adapter, run, processes=4) -> dict[any, str]:
     """
     A function that trims files using multiprocessing and returns a dictionary containing the trimmed files.
 
@@ -438,7 +438,7 @@ def trimming_files(sample_dict, adapter, run, processes="sample") -> dict[any, s
         dict: A dictionary containing the trimmed files.
     """
 
-    if processes == "sample":
+    if processes == 0:
         processes = len(sample_dict)
 
     import multiprocessing
@@ -506,7 +506,7 @@ def get_fastq_stats(args):
     """
 
     sample_name, fastq, run = args
-    if run == "1":
+    if run:
         import numpy
         import numpy as np
 
@@ -563,7 +563,7 @@ def get_fastq_stats(args):
             write_log(logfile, text, mode)
 
 
-def get_stats_fastq_files(sample_dict, run, processes="sample") -> None:
+def get_stats_fastq_files(sample_dict, run, processes=4) -> None:
     """
     Calculate statistics for fastq files in parallel using multiprocessing.
 
@@ -578,7 +578,7 @@ def get_stats_fastq_files(sample_dict, run, processes="sample") -> None:
         None
     """
 
-    if processes == "sample":
+    if processes == 0:
         processes = len(sample_dict)
 
     import multiprocessing
@@ -663,7 +663,7 @@ def filter_gff(gene_loc, biotype, save_path, header, idmapcont_ndict):
         for key in gene_loc_biotype_dict
         if key in idmapcont_ndict
     }
-    # Remove duplicates and format the gtf file.
+    # Remove duplicates and format the gff file.
     gene_loc_biotype = []
     for key in gene_loc_biotype_dict:
         line = gene_loc_biotype_dict[key].split("\t")
@@ -690,28 +690,28 @@ def filter_gff(gene_loc, biotype, save_path, header, idmapcont_ndict):
     return outfile
 
 
-def prepare_biotypes(reference_folder, gtf, tax, biotypes="miRNA") -> dict[str, str]:
+def prepare_biotypes(reference_folder, gff, tax, biotypes="miRNA") -> dict[str, str]:
     """
-    Prepare biotypes from a given GTF file for a specific taxonomy and return the filtered GTF files.
+    Prepare biotypes from a given GFF file for a specific taxonomy and return the filtered GFF files.
 
     Args:
-    - reference_folder: A string representing the directory where the GTF file will be saved.
-    - gtf: A string representing the path to the input GTF file.
-    - tax: A string representing the taxonomy for filtering the GTF file.
-    - biotypes: A string or list of strings representing the biotypes to filter the GTF file (default is "miRNA").
+    - reference_folder: A string representing the directory where the GFF file will be saved.
+    - gff: A string representing the path to the input GFF file.
+    - tax: A string representing the taxonomy for filtering the GFF file.
+    - biotypes: A string or list of strings representing the biotypes to filter the GFF file (default is "miRNA").
 
     Returns:
-    A dictionary containing filtered GTF files for the specified biotypes.
+    A dictionary containing filtered GFF files for the specified biotypes.
     """
 
     import gzip
     import os
 
-    # Downloads the gtf file and saves it in the reference folder.
+    # Downloads the gff file and saves it in the reference folder.
     save_path = os.path.join(
-        reference_folder, os.path.basename(gtf)
+        reference_folder, os.path.basename(gff)
     )  # Gets the name of the file and writes the path.
-    download_file(gtf, save_path)
+    download_file(gff, save_path)
     with gzip.open(save_path, "rb") as f:
         file_cont = f.readlines()
     file_cont = [line.decode() for line in file_cont]
@@ -723,7 +723,7 @@ def prepare_biotypes(reference_folder, gtf, tax, biotypes="miRNA") -> dict[str, 
     gene_loc = [line for line in file_cont if not line.startswith("#")]
 
     # If biotypes is not already a list, convert it to a list.
-    # If biotypes is "all", convert it to a list of all biotypes in the GTF file.
+    # If biotypes is "all", convert it to a list of all biotypes in the GFF file.
     if not isinstance(biotypes, list):
         if biotypes == "all":
             # Get the last column, get to the type properties, get the value of the type properties, split all biotype values and remove duplicates.
@@ -765,7 +765,7 @@ def prepare_biotypes(reference_folder, gtf, tax, biotypes="miRNA") -> dict[str, 
     #     idmapcont_pref = list(set([line.split("\t")[1] for line in idmapcont if line.split("\t")[4] == pref]))
     #     preferences[pref].extend(idmapcont_pref)
 
-    # For each biotype, filter the GTF file based on the prefered database.
+    # For each biotype, filter the GFF file based on the prefered database.
     preferences = {"miRNA": "MIRBASE"}
     idmapcont_ndict = {}
     for pref in preferences:
@@ -793,7 +793,7 @@ def filter_mirbase(kegg, ref_file) -> dict[str, list[str]]:
     Returns:
         dict: A dictionary containing the filtered file contents with modifications.
     """
-    # Read the contents of the reference file (tho whole miRNA base database).
+    # Read the contents of the reference file (the whole miRNA base database).
     with open(ref_file, "r") as r:
         fileCont = r.readlines()
 
@@ -893,7 +893,7 @@ def get_mirna_counts(args) -> dict[str, dict[str, any]]:
 
 
 def mirbase_sequence_assign(
-    sample_dict, mirbaseDB, processes="sample"
+    sample_dict, mirbaseDB, processes=4
 ) -> tuple[dict[any, any], dict[any, any]]:
     """
     Assigns miRNA counts and files to samples using multiprocessing.
@@ -909,7 +909,7 @@ def mirbase_sequence_assign(
         - The second dictionary maps sample names to their corresponding miRNA counts.
     """
 
-    if processes == "sample":
+    if processes == 0:
         processes = len(sample_dict)
 
     import multiprocessing
@@ -970,7 +970,7 @@ def run_aligning(args) -> dict[str, str]:
     outBam = f"03_bam/{sample_name}.bam"
     # The flagstats for each bam file.
     outDedupLog = f"00_log/{sample_name}.flagstats"
-    if run == "1":
+    if run:
         # bowtie -f -n $mismatches_seed -e 80 -l 18 -a -m $mapping_loc --best --strata $file_genome_latest $file_reads_latest $dir/mappings.bwt\n\n";
         subprocess.run(
             f"bowtie -p {num_threads} -n 0 -l 18 --best --nomaqround -e 70 -k 1 -S {index} {fastq_file} 2>{logBowtie} | samtools view --threads {num_threads} -bS - | samtools sort --threads {num_threads} -o {outBam}",
@@ -981,7 +981,7 @@ def run_aligning(args) -> dict[str, str]:
     return {sample_name: outBam}
 
 
-def align_samples(sample_dict, reference, run, processes="sample") -> dict[str, str]:
+def align_samples(sample_dict, reference, run, processes=4) -> dict[str, str]:
     """
     Aligns the samples in the sample_dict to the reference using multiprocessing.
 
@@ -995,7 +995,7 @@ def align_samples(sample_dict, reference, run, processes="sample") -> dict[str, 
         dict: A dictionary containing the aligned samples.
     """
 
-    if processes == "sample":
+    if processes == 0:
         processes = len(sample_dict)
 
     import multiprocessing
@@ -1049,7 +1049,7 @@ def get_map_quality(args) -> None:
         int(line.split(" ")[1]) for line in file_cont if "Reported " in line
     ][0]
     mapped_reads = mapped_reads + mirna_counts
-    if run == "1":
+    if run:
         log_file = f"00_log/{sample_name}.log"
         mode = "a"
         text = "\n############ MAPPING QUALITY ##############\n\n"
@@ -1058,7 +1058,7 @@ def get_map_quality(args) -> None:
         write_log(log_file, text, mode)
 
 
-def quality_mapping_samples(sample_dict, mirna_counts, run, processes="sample") -> None:
+def quality_mapping_samples(sample_dict, mirna_counts, run, processes=4) -> None:
     """
     Map quality for each sample using multiprocessing.
 
@@ -1072,7 +1072,7 @@ def quality_mapping_samples(sample_dict, mirna_counts, run, processes="sample") 
         None
     """
 
-    if processes == "sample":
+    if processes == 0:
         processes = len(sample_dict)
 
     import multiprocessing
@@ -1100,25 +1100,25 @@ def run_featurecount(args) -> dict[any, str]:
 
     import subprocess
 
-    sample_name, bam_file, gtf_file, biotype, num_threads, run = args
+    sample_name, bam_file, gff_file, biotype, num_threads, run = args
     out_name = f"04_counts/{sample_name}_{biotype}.counts.txt"
-    if run == "1":
+    if run:
         subprocess.run(
-            f"featureCounts -T {num_threads} -t {biotype} -g Name -s 1 -O -a {gtf_file} -o {out_name} {bam_file}",
+            f"featureCounts -T {num_threads} -t {biotype} -g Name -s 1 -O -a {gff_file} -o {out_name} {bam_file}",
             shell=True,
         )
     return {sample_name: out_name}
 
 
 def quantify_biotype(
-    sample_dict, gtf_file, biotype, run, processes="sample"
+    sample_dict, gff_file, biotype, run, processes=4
 ) -> dict[str, str]:
     """
     Quantifies the biotype of samples using multiprocessing.
 
     Args:
         sample_dict: A dictionary containing sample names as keys and sample data as values.
-        gtf_file: The file path of the GTF file.
+        gtf_file: The file path of the GFF file.
         biotype: The biotype to quantify.
         run: The run identifier.
         processes: The number of processes to use (default is "sample").
@@ -1127,7 +1127,7 @@ def quantify_biotype(
         A dictionary containing the quantified biotypes for each sample.
     """
 
-    if processes == "sample":
+    if processes == 0:
         processes = len(sample_dict)
 
     import multiprocessing
@@ -1142,7 +1142,7 @@ def quantify_biotype(
                 (
                     sample_name,
                     sample_dict[sample_name],
-                    gtf_file,
+                    gff_file,
                     biotype,
                     num_trheads,
                     run,
@@ -1175,7 +1175,7 @@ def quantify_mirnas(args) -> None:
     )
     # Sums the number of assigned reads by the script and by featureCounts.
     assigned = assigned + mirna_counts
-    if run == "1":
+    if run:
         log_file = f"00_log/{sample_name}.log"
         mode = "a"
         text = "\n############ miRNA QUALITY ##############\n\n"
@@ -1184,7 +1184,7 @@ def quantify_mirnas(args) -> None:
         write_log(log_file, text, mode)
 
 
-def quantify_samples(sample_dict, mirna_counts, run, processes="sample") -> None:
+def quantify_samples(sample_dict, mirna_counts, run, processes=4) -> None:
     """
     Quantify samples using multiprocessing and a pool of processes.
 
@@ -1198,7 +1198,7 @@ def quantify_samples(sample_dict, mirna_counts, run, processes="sample") -> None
         None
     """
 
-    if processes == "sample":
+    if processes == 0:
         processes = len(sample_dict)
 
     import multiprocessing
@@ -1225,8 +1225,8 @@ def concat_mirna(args) -> dict[any, str]:
     """
     # This function merges the results from the featureCounts and the get_mirna_count functions.
     # Count file is the output from featureCounts and miRNA the output from the script.
-    # Remember: mirbaseDB si the output from the filter_mirbase function.
-    # The use_mirbase is a flag to use mirBase or not for filtering the counts.
+    # Remember: mirbaseDB is the output from the filter_mirbase function. The keys are the sequences and the values are the identifiers.
+    # use_mirbase in this case is used as a flag. When the species we are using is not mirBase, use_mirbase is emtpy (None) and we will use the data from the available database.
 
     # Unpack the arguments.
     sample_name, count_file, mirna_counts, use_mirbase, mirbaseDB = args
@@ -1248,9 +1248,9 @@ def concat_mirna(args) -> dict[any, str]:
     read_count = {key: read_count[key] for key in read_count if read_count[key] > 0}
 
     # This is the part that sums the output of each counting method in the same variable for each miRNA.
-    # If use_mirbase is not 0 (true), only the counts identified with the standard miRNA name will be added (featureCounts was used with a gtf file) and Name option was specified.
-    # Uf use_mirbase is 0 (false), counts from featureCounts are identified by the mirBase ID because no gtf file was used.
-    if use_mirbase != "0":
+    # If use_mirbase is specified it will use mirBase.
+    # If use_mirbase is empty (None), counts are identified by the available miRNA IDs for that species.
+    if use_mirbase:
         mirbaseDBCounts = [
             mirbaseDB[key][0] for key in mirbaseDB
         ]  # Keep all mirbase names in a list.
@@ -1282,16 +1282,19 @@ def concat_mirna(args) -> dict[any, str]:
         # Returns only the miRNAs with counts greater than 0 combining the counts from both methods.
         counts = {key: counts[key] for key in counts if counts[key] > 0}
 
+    # Writes the combined counts to a file.
     with open(f"04_counts/{sample_name}_miRNA_concat.txt", "w") as f:
         f.write("miRNA\tcounts\n")
         for mirna in read_count:
             f.write(f"{mirna}\t{read_count[mirna]}\n")
 
+    # Updates the sample_dict.
+    # The file path is used in the next step to assign the files to the samples.
     return {sample_name: f"04_counts/{sample_name}_miRNA_concat.txt"}
 
 
 def concat_mirna_samples(
-    sample_dict, mirna_counts, use_mirbase, mirbaseDB, processes="sample"
+    sample_dict, mirna_counts, use_mirbase, mirbaseDB, processes=4
 ) -> dict[any, any]:
     """
     Concatenates miRNA samples and returns a dictionary.
@@ -1307,7 +1310,7 @@ def concat_mirna_samples(
         dict: Concatenated miRNA samples
     """
 
-    if processes == "sample":
+    if processes == 0:
         processes = len(sample_dict)
 
     import multiprocessing
@@ -1346,7 +1349,7 @@ def merge_count_files(suffix, run, folder_path="04_counts/") -> None:
         None
     """
 
-    if run == "1":
+    if run:
         import os
         import pandas as pd
         import re
@@ -1401,7 +1404,7 @@ def create_colData(groups, suffix, read_type, run, folder_path="04_counts/") -> 
     - None
     """
 
-    if run == "1":
+    if run:
 
         import os
         import re

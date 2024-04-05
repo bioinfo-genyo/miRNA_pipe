@@ -3,10 +3,10 @@ This is the first step of the data pre-processing, delete the adapter and UMIs f
 
     Args:
         -I, --input_dir (str): Input directory.
-        -A, --adapter (str): Adapter sequence to remove.
+        -A, --adapter (str): Adapter sequence to remove. Default is the Illumina universal adapter.
         -R, --run (str): Run control variable (1 to run).
         -L, --slow (str): Slow mode. It only uses one thread. Use in case the memory use overwhelms the system capabilities.
-        -P, --processes (str): The number of cpu threads to use. If no number of threads is specified, use the number of samples to maximize parallelization.
+        -P, --processes (str): The number of cpu threads to use. Default is 4. If 0 is specified, use the number of samples to maximize parallelization.
         -a, --append_sample_dict (str): If specified, appends an existing sample dictionary to the new one.
 """
 
@@ -24,14 +24,14 @@ from functions.libs import (
 
 # Gets the command line arguments with argparse.
 parser = argparse.ArgumentParser()
-parser.add_argument("-I", "--input_dir")
-parser.add_argument("-A", "--adapter")
-parser.add_argument("-R", "--run", type=str, default="0")
+parser.add_argument("-I", "--input_dir", type=str)
+parser.add_argument("-A", "--adapter", type=str, default="AGATCGGAAGAG")
+parser.add_argument("-R", "--run", type=bool, default=False)
 parser.add_argument(
     "-L", "--slow", type=bool, default=False
 )  # Much slower processing, but less memory-intensive.
-parser.add_argument("-P", "--processes")
-parser.add_argument("-a", "--append_sample_dict", type=bool, default=False)
+parser.add_argument("-P", "--processes", type=int, default=4)
+parser.add_argument("-a", "--append_sample_dict", action="store_true")
 args = vars(parser.parse_args())
 
 # Assign the command line arguments to variables.
@@ -43,9 +43,6 @@ input_dir, adapter, run, slow, processes, append = (
     args["processes"],
     args["append_sample_dict"],
 )
-
-if processes:
-    processes = int(processes)
 
 # Build sample dict. Key is sample name, value is fastq file path. This is what we use to localize the appropiate files for each step.
 # When a processing step is performed over the samples, their file name is changed to indicate the process performed.
@@ -59,12 +56,13 @@ for sample_name in sample_names:
     sample_dict[sample_name] = fastq_file_r1
 
 # Creates necessary directories for the analysis.
-mkdir("FastQC")
-mkdir("FastQC/Raw")
-mkdir("FastQC/Trim")
-mkdir("00_log")
-mkdir("02_trim")
-mkdir("05_plot")
+mkdir("FastQC/")
+mkdir("FastQC/Raw/")
+mkdir("FastQC/Trim/")
+mkdir("00_log/")
+
+# The number indicates the script that has generated the file (except for 00_log).
+mkdir("02_trim/")
 
 # Run the fastqc and trimming steps.
 if slow:
