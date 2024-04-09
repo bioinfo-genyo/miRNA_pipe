@@ -28,24 +28,24 @@ from multiprocessing import cpu_count
 parser = argparse.ArgumentParser()
 parser.add_argument("-I", "--input_dir", type=str)
 parser.add_argument("-A", "--adapter", type=str, default="AGATCGGAAGAG")
-parser.add_argument("-R", "--run", type=bool, default=False)
+parser.add_argument("-T", "--threads", type=int, default=cpu_count())
+parser.add_argument("-P", "--processes", type=int, default=4)
 parser.add_argument(
     "-L", "--slow", action="store_true"
 )  # Much slower processing, but less memory-intensive.
-parser.add_argument("-T", "--threads", type=int, default=cpu_count())
-parser.add_argument("-P", "--processes", type=int, default=4)
 parser.add_argument("-a", "--append_sample_dict", action="store_true")
+parser.add_argument("-R", "--run", type=bool, default=False)
 args = vars(parser.parse_args())
 
 # Assign the command line arguments to variables.
 input_dir, adapter, run, slow, threads, processes, append = (
     args["input_dir"],
     args["adapter"],
-    args["run"],
-    args["slow"],
     args["threads"],
     args["processes"],
+    args["slow"],
     args["append_sample_dict"],
+    args["run"],
 )
 
 # Build sample dict. Key is sample name, value is fastq file path. This is what we use to localize the appropiate files for each step.
@@ -73,10 +73,10 @@ if slow:
     # Much lower, but less memory intensive.
     sample_dict = trimming_files_slow(sample_dict, adapter, threads, run)
 else:
-    eval_fastq_files(sample_dict, "FastQC/Raw", adapter, threads, run, processes)
-    sample_dict = trimming_files(sample_dict, adapter, threads, run, processes)
-    eval_fastq_files(sample_dict, "FastQC/Trim", "None", threads, run, processes)
-    get_stats_fastq_files(sample_dict, run, processes)
+    eval_fastq_files(sample_dict, "FastQC/Raw", adapter, threads, processes, run)
+    sample_dict = trimming_files(sample_dict, adapter, threads, processes, run)
+    eval_fastq_files(sample_dict, "FastQC/Trim", "None", threads, processes, run)
+    get_stats_fastq_files(sample_dict, processes, run)
 
 # If we want to operate over files stored in different folders, it is necessary to run this script on each folder separately.
 # The append option allows us to append the sample dict of the new samples to the previous one.

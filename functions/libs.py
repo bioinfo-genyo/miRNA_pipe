@@ -256,26 +256,24 @@ def write_log(logfile: str, text: str, mode: str) -> None:
         write_file.write(text)
 
 
-def eval_fastq_file(
-    sample_path: str,
-    output: str = ".",
-    adapter: str = None,
-    threads: int = num_threads,
-    run: bool = False,
-) -> None:
+def eval_fastq_file(args: tuple) -> None:
     """
     A function to evaluate a fastq file. Performs fastq and gets the number of reads from the file.
 
     Args:
-        sample_path (str): The path to the fastq file.
-        output (str): The output directory for the results.
-        adapter (str): The adapter to be used. Defaults to None.
-        threads (int, optional): The number of threads to be used. Defaults to total number of CPU threads.
-        run (bool, optional): Whether to run the evaluation. Defaults to False.
+        args (tuple): The arguments must be input in a single tuple with the following components (allows multiprocessing):
+            sample_path (str): The path to the fastq file.
+            output (str): The output directory for the results.
+            adapter (str): The adapter to be used.
+            threads (int): The number of threads to be used.
+            run (bool): Whether to run the evaluation.
 
     Returns:
         None
     """
+
+    # Unpack the arguments. The first argument is the sample path, the second is the output directory, the third is the adapter, the fourth is the number of threads, and the fifth is the run flag. This allows to accept a tuple as input, making the function compatible with multiprocessing.
+    sample_path, output, adapter, threads, run = args
 
     if run:
         # Run fastqc.
@@ -320,8 +318,8 @@ def eval_fastq_files(
     output: str,
     adapter: str,
     threads: int = num_threads,
-    run: bool = False,
     processes: int = 4,
+    run: bool = False,
 ) -> None:
     """
     Runs eval_fastq_file in parallel using multiprocessing and performs multiqc.
@@ -338,7 +336,6 @@ def eval_fastq_files(
         None: This function does not return anything.
     """
 
-    # By the default the number of processes is set to the number of samples in order to maximize the parallelization.
     if processes == 0:
         processes = len(sample_dict)
 
@@ -346,6 +343,7 @@ def eval_fastq_files(
         pool.map(
             eval_fastq_file,
             [
+                # Creates a tuple for each sample to be used as input for the eval_fastq_file function.
                 (sample_dict[sample_name], output, adapter, threads, run)
                 for sample_name in sample_dict
             ],
@@ -407,26 +405,24 @@ def remove_umi_delete_adapter(fastq_file: str, adapter: str, outfile: str) -> in
     return duplicated_lines
 
 
-def run_trimming(
-    sample_name: str,
-    fastq_file: str,
-    adapter: str,
-    threads: int = num_threads,
-    run: bool = False,
-) -> dict[str, str]:
+def run_trimming(args) -> dict[str, str]:
     """
     Trims fastq files using the specified adapter and run settings.
 
     Args:
-        sample_name (str): The sample name.
-        fastq_file (str): The fastq file path.
-        adapter (str): The adapter sequence for trimming.
-        threads (int): The number of threads to use for trimming. Defaults to total number of CPU threads.
-        run (bool, optional): Whether to run the trimming. Defaults to False.
+        args (tuple): The arguments must be input in a single tuple with the following components (allows multiprocessing):
+            sample_name (str): The sample name.
+            fastq_file (str): The fastq file path.
+            adapter (str): The adapter sequence for trimming.
+            threads (int): The number of threads to use for trimming.
+            run (bool): Whether to run the trimming.
 
     Returns:
         Sample dictionary with sample name as key and fastq file path as value.
     """
+
+    # Unpack the arguments. The first argument is the sample name, the second is the fastq file path, the third is the adapter sequence, the fourth is the number of threads to use, and the fifth is the run flag. This allows to accept a tuple as input, making the function compatible with multiprocessing.
+    sample_name, fastq_file, adapter, threads, run = args
 
     # For each step, the file name is updated to indicate the process performed over the sample.
     # This file name change is registered in a variable called sample_dict. This is a dictionary with sample_name as key and fastq_file path as a value.
@@ -463,11 +459,11 @@ def run_trimming(
 
 
 def trimming_files(
-    sample_dict: str,
+    sample_dict: dict,
     adapter: str,
     threads: int = num_threads,
-    run: bool = False,
     processes: int = 4,
+    run: bool = False,
 ) -> dict[str, str]:
     """
     Runs run_trimming in parallel using multiprocessing and returns a dictionary containing the trimmed files.
@@ -476,7 +472,9 @@ def trimming_files(
         sample_dict (dict): A dictionary containing the samples to be trimmed.
         adapter (str): The adapter used for trimming.
         run (int): The run number.
+        threads (int): The number of threads to use for trimming. Defaults to total number of CPU threads.
         processes (str, optional): The number of processes to use for multiprocessing. Defaults to "sample".
+        run (bool, optional): Whether to run the trimming. Defaults to False.
 
     Returns:
         dict: A dictionary containing the trimmed files.
@@ -489,6 +487,7 @@ def trimming_files(
         sample_dict = pool.map(
             run_trimming,
             [
+                # Creates a tuple for each sample to be used as input for the run_trimming function.
                 (sample_name, sample_dict[sample_name], adapter, threads, run)
                 for sample_name in sample_dict
             ],
@@ -535,18 +534,22 @@ def convert_quality_to_numeric(quality_str: str) -> list[int]:
     return quality_str_num
 
 
-def get_fastq_stats(sample_name: str, fastq: str, run: bool = False) -> None:
+def get_fastq_stats(args: tuple) -> None:
     """
     Calculate statistics for fastq files.
 
     Args:
-        sample_name (str): The sample name.
-        fastq (str): The path to the fastq file.
-        run (bool, optional): Whether to run the evaluation. Defaults to False.
+        args (tuple): The arguments must be input in a single tuple with the following components (allows multiprocessing):
+            sample_name (str): The sample name.
+            fastq (str): The path to the fastq file.
+            run (bool, optional): Whether to run the evaluation. Defaults to False.
 
     Returns:
         None
     """
+
+    # Unpacks the tuple. The first element is the sample name, the second element is the fastq file, and the third element is the run flag. This allows to accept a tuple as input, making the function compatible with multiprocessing.
+    sample_name, fastq, run = args
 
     if run:
 
@@ -604,7 +607,9 @@ def get_fastq_stats(sample_name: str, fastq: str, run: bool = False) -> None:
 
 
 def get_stats_fastq_files(
-    sample_dict: dict, run: bool = False, processes: int = 4
+    sample_dict: dict,
+    processes: int = 4,
+    run: bool = False,
 ) -> None:
     """
     Calculate statistics for fastq files in parallel using multiprocessing.
@@ -627,6 +632,7 @@ def get_stats_fastq_files(
         pool.map(
             get_fastq_stats,
             [
+                # Creates a tuple for each sample to be used as input for the get_stats_fastq_files function.
                 (sample_name, sample_dict[sample_name], run)
                 for sample_name in sample_dict
             ],
@@ -851,20 +857,22 @@ def filter_mirbase(kegg: str, ref_file: str) -> dict[str, list[str]]:
     return fileCont
 
 
-def get_mirna_counts(
-    sample_name: str, fastq_file: str, mirbaseDB: dict
-) -> dict[str, dict[str, int | str]]:
+def get_mirna_counts(args: tuple) -> dict[str, dict[str, int | str]]:
     """
     Counts the miRNAs in the given fastq file and returns a dictionary with the sample name as key and a dictionary with the miRNAs as keys and the counts as values.
 
     Args:
-        sample_name (str): The name of the sample.
-        fastq_file (str): The path to the fastq file.
-        mirbaseDB (dict): A dictionary containing the miRNAs as keys and the identifiers as values.
+        args (tuple): The arguments must be input in a single tuple with the following components (allows multiprocessing):
+            sample_name (str): The name of the sample.
+            fastq_file (str): The path to the fastq file.
+            mirbaseDB (dict): A dictionary containing the miRNAs as keys and the identifiers as values.
 
     Returns:
         dict: A dictionary with the sample name as key and as a value, another dictionary with 2 key-value pairs. The first key is "mirna" and the value is a dictionary with the miRNA as key and the number of occurrences as value. The second key is "file" and the value is the name of the output fastq with the unassigned miRNAs.
     """
+
+    # Unpack the arguments. The first argument is the sample name, the second is the path to the fastq file, and the third is the mirbaseDB dictionary.This allows to accept a tuple as input, making the function compatible with multiprocessing.
+    sample_name, fastq_file, mirbaseDB = args
 
     # We use this custom function to count the miRNAs that exact match the sequence in order to reduce de computing time that requires to map and count the reads that have only partial matches to the miRNA sequences.
     # Associated reads with this functions would be not be taken into account for the mapping steps.
@@ -955,6 +963,7 @@ def mirbase_sequence_assign(
         sample_files = pool.map(
             get_mirna_counts,
             [
+                # Creates a tuple for each sample to be used as input for the get_mirna_counts function.
                 (sample_name, sample_dict[sample_name], mirbaseDB)
                 for sample_name in sample_dict
             ],
@@ -981,26 +990,24 @@ def mirbase_sequence_assign(
     return sample_files, mirna_counts
 
 
-def run_aligning(
-    sample_name: str,
-    fastq_file: str,
-    index: str,
-    threads: int = num_threads,
-    run: bool = False,
-) -> dict[str, str]:
+def run_aligning(args: tuple) -> dict[str, str]:
     """
     Aligns the fastq file to the index using bowtie.
 
     Args:
-        sample_name (str): The sample name.
-        fastq_file (str): The fastq file path.
-        index (str): The index file path.
-        threads (int): The number of threads to use for alignment. Defaults to total number of CPU threads.
-        run (bool, optional): Whether to run the alignment. Defaults to False.
+        args (tuple): The arguments must be input in a single tuple with the following components (allows multiprocessing):
+            sample_name (str): The sample name.
+            fastq_file (str): The fastq file path.
+            index (str): The index file path.
+            threads (int): The number of threads to use for alignment.
+            run (bool): Whether to run the alignment.
 
     Returns:
         Sample dictionary with sample name as key and fastq file path as value.
     """
+
+    # Unpack the arguments. The first argument is the sample name, the second is the fastq file path, the third is the index file path, the fourth is the number of threads to use for alignment, and the fifth the run flag. This allows to accept a tuple as input, making the function compatible with multiprocessing.
+    sample_name, fastq_file, index, threads, run = args
 
     # After making a first direct counting using the get_mirna_counts functions in the previous step we have reduced the number of miRNAs that need to be quantify based on their mapping quality.
     # For that we use featureCounts, which requires the sample to be aligned against the reference genome.
@@ -1029,8 +1036,8 @@ def align_samples(
     sample_dict,
     reference,
     threads: int = num_threads,
-    run: bool = False,
     processes: int = 4,
+    run: bool = False,
 ) -> dict[str, str]:
     """
     Aligns the samples in the sample_dict to the reference using multiprocessing.
@@ -1052,6 +1059,7 @@ def align_samples(
         sample_dict = pool.map(
             run_aligning,
             [
+                # Creates a tuple for each sample to be used as input for the run_aligning function.
                 (
                     sample_name,
                     sample_dict[sample_name],
@@ -1066,15 +1074,19 @@ def align_samples(
     return sample_dict
 
 
-def get_map_quality(sample_name: str, mirna_counts: dict, run: bool = False) -> None:
+def get_map_quality(args: tuple) -> None:
     """
     Calculates the mapping quality for each sample.
 
     Args:
-        sample_name (str): The sample name.
-        mirna_counts (dict): A dictionary containing the miRNA counts for each sample.
-        run (bool, optional): Whether to run the mapping quality calculation. Defaults to False.
+        args (tuple): The arguments must be input in a single tuple with the following components (allows multiprocessing):
+            sample_name (str): The sample name.
+            mirna_counts (dict): A dictionary containing the miRNA counts for each sample.
+            run (bool): Whether to run the mapping quality calculation.
     """
+
+    # Unpack the arguments. The first argument is the sample name, the second is the miRNA counts, and the third the run flag. This allows to accept a tuple as input, making the function compatible with multiprocessing.
+    sample_name, mirna_counts, run = args
 
     # Gets number of reads previously assigned to miRNAs by our custom script.
     mirna_counts = sum(mirna_counts.values())
@@ -1101,7 +1113,10 @@ def get_map_quality(sample_name: str, mirna_counts: dict, run: bool = False) -> 
 
 
 def quality_mapping_samples(
-    sample_dict: dict, mirna_counts: dict, run: bool = False, processes: int = 4
+    sample_dict: dict,
+    mirna_counts: dict,
+    processes: int = 4,
+    run: bool = False,
 ) -> None:
     """
     Map quality for each sample using multiprocessing.
@@ -1123,30 +1138,28 @@ def quality_mapping_samples(
         pool.map(
             get_map_quality,
             [
+                # Creates a tuple for each sample to be used as input for the get_map_quality function.
                 (sample_name, mirna_counts[sample_name], run)
                 for sample_name in sample_dict
             ],
         )
 
 
-def run_featurecount(
-    sample_name: str,
-    bam_file: str,
-    gff_file: str,
-    biotype: str,
-    threads: int = num_threads,
-    run: bool = False,
-) -> dict[any, str]:
+def run_featurecount(args: tuple) -> dict[any, str]:
     """
     Runs featureCounts on the bam file and returns the output file path.
 
     Args:
-        sample_name (str): The sample name.
-        bam_file (str): The bam file path.
-        gff_file (str): The gff file path.
-        biotype (str): The biotype to count.
-        threads (int, optional): The number of threads to use. Defaults to the total number of CPU threads.
+        args (tuple): The arguments must be input in a single tuple with the following components (allows multiprocessing):
+            sample_name (str): The sample name.
+            bam_file (str): The bam file path.
+            gff_file (str): The gff file path.
+            biotype (str): The biotype to count.
+            threads (int): The number of threads to use.
     """
+
+    # Unpack the arguments. The first argument is the sample name, the second is the bam file path, the third is the gff file path, the fourth is the biotype to count, the fifth is the number of threads to use, and the sixth the run flag .This allows to accept a tuple as input, making the function compatible with multiprocessing.
+    sample_name, bam_file, gff_file, biotype, threads, run = args
 
     out_name = f"05_counts/{sample_name}_{biotype}.counts.txt"
     if run:
@@ -1162,8 +1175,8 @@ def quantify_biotype(
     gff_file: str,
     biotype: str,
     threads: int = num_threads,
-    run: bool = False,
     processes: int = 4,
+    run: bool = False,
 ) -> dict[str, str]:
     """
     Runs run_featurecount in parallel using multiprocessing.
@@ -1187,6 +1200,7 @@ def quantify_biotype(
         sample_dict = pool.map(
             run_featurecount,
             [
+                # Creates a tuple for each sample to be used as input for the run_featurecount function.
                 (
                     sample_name,
                     sample_dict[sample_name],
@@ -1202,19 +1216,23 @@ def quantify_biotype(
     return sample_dict
 
 
-def quantify_mirnas(sample_name: str, mirna_counts: dict, run: bool = False) -> None:
+def quantify_mirnas(args: tuple) -> None:
     """
     This functions sums the number of assigned reads by the script and by featureCounts.
 
     Args:
-        sample_name: The sample name.
-        mirna_counts: A dictionary containing miRNA counts for each sample.
-        run: The run identifier.
+        args (tuple): The arguments must be input in a single tuple with the following components (allows multiprocessing):
+            sample_name: The sample name.
+            mirna_counts: A dictionary containing miRNA counts for each sample.
+            run: The run identifier.
 
     Returns:
         None
     """
     # This function gets the number of assigned reads by the script and by featureCounts.
+
+    # Unpack the arguments. The first argument is the sample name, the second is the mirna counts, and the third the run flag. This allows to accept a tuple as input, making the function compatible with multiprocessing.
+    sample_name, mirna_counts, run = args
 
     mirna_counts = sum(mirna_counts.values())
     with open(f"05_counts/{sample_name}_miRNA.counts.txt.summary", "r") as f:
@@ -1234,7 +1252,10 @@ def quantify_mirnas(sample_name: str, mirna_counts: dict, run: bool = False) -> 
 
 
 def quantify_samples(
-    sample_dict: dict, mirna_counts: dict, run: bool = False, processes: int = 4
+    sample_dict: dict,
+    mirna_counts: dict,
+    processes: int = 4,
+    run: bool = False,
 ) -> None:
     """
     Runs quantify_mirnas in parallel using multiprocessing.
@@ -1256,28 +1277,24 @@ def quantify_samples(
         pool.map(
             quantify_mirnas,
             [
+                # Creates a tuple for each sample to be used as input for the quantify_mirnas function.
                 (sample_name, mirna_counts[sample_name], run)
                 for sample_name in sample_dict
             ],
         )
 
 
-def concat_mirna(
-    sample_name: str,
-    count_file: str,
-    mirna_counts: dict,
-    mirbaseDB=dict,
-    use_mirbase: str = None,
-) -> dict[str, str]:
+def concat_mirna(args: tuple) -> dict[str, str]:
     """
     This function merges the results from the featureCounts and the get_mirna_count functions.
 
     Args:
-        sample_name (str): The sample name.
-        count_file (str): The count file path.
-        mirna_counts (dict): A dictionary containing miRNA counts for each sample.
-        use_mirbase (str): When the species we are analyzing is not in mirBase, left use_mirbase emtpy and the data from the available database will be used.
-        mirbaseDB (dict): mirBase database.
+        args (tuple): The arguments must be input in a single tuple with the following components (allows multiprocessing):
+            sample_name (str): The sample name.
+            count_file (str): The count file path.
+            mirna_counts (dict): A dictionary containing miRNA counts for each sample.
+            use_mirbase (str): When the species we are analyzing is not in mirBase, left use_mirbase emtpy and the data from the available database will be used.
+            mirbaseDB (dict): mirBase database.
 
     Returns:
         A dictionary containing the merged results.
@@ -1286,6 +1303,9 @@ def concat_mirna(
     # Count file is the output from featureCounts and miRNA the output from the script.
     # Remember: mirbaseDB is the output from the filter_mirbase function. The keys are the sequences and the values are the identifiers.
     # use_mirbase in this case is used as a flag. When the species we are using is not mirBase, use_mirbase is emtpy (None) and we will use the data from the available database.
+
+    # Unpack the arguments. The first argument is the sample name, the second is the count file, the third is the mirna counts, and the fourth the use_mirbase flag. This allows to accept a tuple as input, making the function compatible with multiprocessing.
+    sample_name, count_file, mirna_counts, mirbaseDB, use_mirbase = args
 
     print(count_file)
     with open(count_file) as f:
@@ -1377,6 +1397,7 @@ def concat_mirna_samples(
     with Pool(processes) as pool:
         sample_dict = pool.map(
             concat_mirna,
+            # Creates a tuple for each sample to be used as input for the concat_mirna function.
             [
                 (
                     sample_name,
