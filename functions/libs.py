@@ -470,7 +470,7 @@ def trimming_files(
     processes: int = 4,
 ) -> dict[str, str]:
     """
-    A function that trims files using multiprocessing and returns a dictionary containing the trimmed files.
+    Runs run_trimming in parallel using multiprocessing and returns a dictionary containing the trimmed files.
 
     Args:
         sample_dict (dict): A dictionary containing the samples to be trimmed.
