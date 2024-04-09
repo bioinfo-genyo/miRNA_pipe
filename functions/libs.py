@@ -518,7 +518,9 @@ def trimming_files_slow(
     trimmed_dict = {}
     for sample_name in sample_dict:
         trimmed_dict.update(
-            run_trimming(sample_name, sample_dict[sample_name], adapter, threads, run)
+            run_trimming(
+                args=(sample_name, sample_dict[sample_name], adapter, threads, run)
+            )
         )
 
     return trimmed_dict

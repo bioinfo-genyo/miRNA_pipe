@@ -38,13 +38,13 @@ parser.add_argument("-R", "--run", type=bool, default=False)
 args = vars(parser.parse_args())
 
 # Assign the command line arguments to variables.
-input_dir, adapter, run, slow, threads, processes, append = (
+input_dir, adapter, slow, append, threads, processes, run = (
     args["input_dir"],
     args["adapter"],
-    args["threads"],
-    args["processes"],
     args["slow"],
     args["append_sample_dict"],
+    args["threads"],
+    args["processes"],
     args["run"],
 )
 
