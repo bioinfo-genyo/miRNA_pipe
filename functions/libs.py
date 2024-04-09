@@ -654,7 +654,7 @@ def prepare_ref(fasta: str, ref: str, threads: int = num_threads) -> None:
     bw_files = list_dir_files(f"{ref}/Bowtie")
     if len(bw_files) == 0:
         ########### Launch Reference ###############
-        bash(f"gunzip -k {fasta}", shell=True)
+        bash(f"gunzip -kf {fasta}", shell=True)
         bash(
             f"bowtie-build {fasta.replace('.gz','')} {ref}/Bowtie/genome --threads {threads}",
             shell=True,
