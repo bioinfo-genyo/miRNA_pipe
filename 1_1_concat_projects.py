@@ -13,10 +13,10 @@ from functions.libs import list_dir_files, mkdir, copy_files
 
 # Gets the command line arguments with argparse.
 parser = argparse.ArgumentParser()
-parser.add_argument("-I", "--final-dir")
-parser.add_argument("-A", "--rem-files")
-parser.add_argument("-P", "--project")
-parser.add_argument("-L", "--run", type=str, default="0")
+parser.add_argument("-I", "--final-dir", type=str)
+parser.add_argument("-A", "--rem-files", type=str)
+parser.add_argument("-P", "--project", type=str)
+parser.add_argument("-R", "--run", type=bool, default=False)
 args = vars(parser.parse_args())
 
 # Assign the command line arguments to variables.
@@ -29,7 +29,7 @@ final_dir, rem_files, project, run = (
 
 # If the final directory is not the same as the project, copy the files to the given final directory.
 if final_dir != project:
-    if run == "1":
+    if run:
         mkdir(final_dir)
         projects = project.split(",")
         for project in projects:

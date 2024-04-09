@@ -1,6 +1,8 @@
+#### IMPORT LIBRARIES ####
+
 from typing import Generator, Literal
 from multiprocessing import Pool, cpu_count
-from subprocess import run as bash # Avoids namespace conflicts.
+from subprocess import run as bash  # Avoids namespace conflicts.
 import collections
 import shutil
 import os
@@ -12,9 +14,18 @@ import numpy as np
 import pandas as pd
 import re
 
+
+#### SET CPU THREADS ####
+
 num_threads = cpu_count()
 
-def detect_paired_single(sampleName, listFiles) -> Literal["paired", "single"]:
+
+#### FUNCTIONS ####
+
+
+def detect_paired_single(
+    sampleName: str, listFiles: list
+) -> Literal["paired", "single"]:
     """
     Detects if the sample is paired or single-end based on the given sample name and list of files.
     Args:
@@ -36,7 +47,7 @@ def detect_paired_single(sampleName, listFiles) -> Literal["paired", "single"]:
         return "single"
 
 
-def shutil_python(output_file, input_files) -> None:
+def shutil_python(output_file: str, input_files: list[str]) -> None:
     """
     Concatenates the data from multiple input files and writes the result to the specified output file.
     Args:
@@ -55,13 +66,13 @@ def shutil_python(output_file, input_files) -> None:
     bash(["gzip", output_file], check=True)
 
 
-def zcat_files(output_file, input_files) -> None:
+def zcat_files(output_file: str, input_files: list[str]) -> None:
     """
     Compresses and concatenates the input files into the specified output file.
 
     Args:
         output_file (str): The name of the output file to be created.
-        input_files (list of str): The list of input files to be concatenated and compressed.
+        input_files (list[str]): The list of input files to be concatenated and compressed.
 
     Returns:
         None
@@ -71,21 +82,24 @@ def zcat_files(output_file, input_files) -> None:
     os.system("gzip {}".format(output_file))
 
 
-def concatenate_files(args) -> dict[any, dict[any, any]]:
+def concatenate_files(
+    sampleName: str, listFiles: list[str], run: bool = False
+) -> dict[any, dict[any, any]]:
     """
     Concatenates files based on sample name and list of files and returns a dictionary
     containing sample name and corresponding files.
     This function is thought to concatenate lane-split files.
 
     Args:
-        args (tuple): A tuple containing sample name, list of files, and a run number.
+        sampleName (str): The name of the sample to concatenate.
+        listFiles (list): The list of files to concatenate.
+        run (bool, optional): Whether to run the concatenation. Defaults to False.
 
     Returns:
         dict: A dictionary with sample name as key and a nested dictionary containing
         file information as value.
     """
 
-    sampleName, listFiles, run = args
     paired_or_single = detect_paired_single(sampleName, listFiles)
     # Create the strands list to add to the sample name.
     if paired_or_single == "paired":
@@ -117,7 +131,7 @@ def concatenate_files(args) -> dict[any, dict[any, any]]:
     return {sampleName_change: sampleDict}
 
 
-def mkdir(dir) -> None:
+def mkdir(dir: str) -> None:
     """
     Function to create a directory
     """
@@ -126,27 +140,27 @@ def mkdir(dir) -> None:
         os.mkdir(dir)
 
 
-def list_dir_files(dir, pattern="None") -> list[str]:
+def list_dir_files(dir: str, pattern: str = "None") -> list[str]:
     """
-    Function to list the files of a directory
+    Function to list the files of a directory. If pattern is specified, only files matching the pattern will be returned.
     """
 
-    if pattern == "None":
+    if not pattern:
         files = glob.glob(f"{dir}/*")
     else:
         files = glob.glob(f"{dir}/*{pattern}*")
     return files
 
 
-def copy_files(or_file, to_file) -> None:
+def copy_files(src_file: str, dst_file: str) -> None:
     """
     Function to copy files from source to dest
     """
 
-    shutil.copy(or_file, to_file)
+    shutil.copy(src_file, dst_file)
 
 
-def rm_file(file) -> None:
+def rm_file(file: str) -> None:
     """
     Function to remove file if it exists
     """
@@ -155,9 +169,17 @@ def rm_file(file) -> None:
         os.remove(file)
 
 
-def download_file(url, filename, force=False) -> None:
+def download_file(url: str, filename: str, force: bool = False) -> None:
     """
-    Function to download files and files.gz
+    Function to download data files. If the file already exists, it will not be downloaded again.
+
+    Args:
+        url (str): The URL of the file to download.
+        filename (str): The name of the file to download.
+        force (bool, optional): Whether to force download even if file exists. Defaults to False.
+
+    Returns:
+        None
     """
 
     # First check if the file already exists.
@@ -190,9 +212,9 @@ def download_file(url, filename, force=False) -> None:
                         f.write(chunk)
 
 
-def get_sample_name(file_names) -> list[any]:
+def get_sample_name(file_names: list[str]) -> list[str]:
     """
-    Function to list the sample names of a list of fastq files
+    Function to list the sample names of a list of fastq files.
     """
 
     return list(
@@ -206,10 +228,10 @@ def get_sample_name(file_names) -> list[any]:
     )
 
 
-def read_gzfile(filename) -> Generator[bytes | str, any, None]:
+def read_gzfile(filename: str) -> Generator[bytes | str, any, None]:
     # The use of a generator allows better memory management (loads the file in chunks).
     """
-    Function to read a gz file
+    Function to read a .gz file
     """
 
     with gzip.open(filename, "rt") as f:
@@ -217,7 +239,7 @@ def read_gzfile(filename) -> Generator[bytes | str, any, None]:
             yield line.rstrip()
 
 
-def write_log(logfile, text, mode) -> None:
+def write_log(logfile: str, text: str, mode: str) -> None:
     """
     Writes the given text to the specified log file using the provided mode.
 
@@ -234,52 +256,83 @@ def write_log(logfile, text, mode) -> None:
         write_file.write(text)
 
 
-def eval_fastq_file(args) -> None:
+def eval_fastq_file(
+    sample_path: str,
+    output: str = ".",
+    adapter: str = None,
+    threads: int = num_threads,
+    run: bool = False,
+) -> None:
     """
-    Function to evaluate a fastq file. It outputs the number of raw reads in the fastq file and the number of reads after trimming.
-    Takes arguments for sample name, sample dictionary, output, adapter, threads, and run.
-    """
+    A function to evaluate a fastq file. Performs fastq and gets the number of reads from the file.
 
-    sample_name, sample_dict, output, adapter, threads, run = args
+    Args:
+        sample_path (str): The path to the fastq file.
+        output (str): The output directory for the results.
+        adapter (str): The adapter to be used. Defaults to None.
+        threads (int, optional): The number of threads to be used. Defaults to total number of CPU threads.
+        run (bool, optional): Whether to run the evaluation. Defaults to False.
+
+    Returns:
+        None
+    """
 
     if run:
-        bash(f"fastqc {sample_dict} -o {output} -t {threads}", shell=True)
-    log_file = f"00_log/{sample_name}.log"
-    if adapter != "None":
-        if run:
+        # Run fastqc.
+        bash(f"fastqc {sample_path} -o {output} -t {threads}", shell=True)
+        # Get the sample name.
+        filename = os.path.basename(sample_path)
+        sample_name = filename.split(".")[0]
+        # Create the path for the log file.
+        log_file = f"00_log/{sample_name}.log"
+
+        # If  the adapter is included, that means the fastq file is raw.
+        if adapter:
             mode = "w"
             text = "############ RAW READS ##############\n\n"
             write_log(log_file, text, mode)
             mode = "a"
-            filename = sample_dict
-            lines = read_gzfile(filename)
+            # Creates a list of lines from the fastq file. The file is contained in a generator that will only read the lines when requested.
+            lines = read_gzfile(sample_path)
+            # Because the fastq file has 4 lines per sequence, the numpy array is used to split the list into chunks of 4 lines with the zip function.
             gzip_cont = np.array(list(zip(*[lines] * 4)))
+            # Write the number of reads to the log file.
             text = f"{filename} has {int(len(gzip_cont))} reads\n\n"
             write_log(log_file, text, mode)
-    else:
-        if run:
+
+        # If no adapter is specified, the fastq file is trimmed.
+        else:
             mode = "a"
             text = "############ TRIM READS ##############\n\n"
             write_log(log_file, text, mode)
             mode = "a"
-            filename = sample_dict
-            lines = read_gzfile(filename)
+            # Creates a list of lines from the fastq file. The file is contained in a generator that will only read the lines when requested.
+            lines = read_gzfile(sample_path)
+            # Because the fastq file has 4 lines per sequence, the numpy array is used to split the list into chunks of 4 lines with the zip function.
             gzip_cont = np.array(list(zip(*[lines] * 4)))
+            # Write the number of reads to the log file.
             text = f"{filename} has {int(len(gzip_cont))} reads\n\n"
             write_log(log_file, text, mode)
 
 
-def eval_fastq_files(sample_dict, output, adapter, run, processes=4) -> None:
+def eval_fastq_files(
+    sample_dict: dict,
+    output: str,
+    adapter: str,
+    threads: int = num_threads,
+    run: bool = False,
+    processes: int = 4,
+) -> None:
     """
-    Evaluate fastq files using multiprocessing for parallel processing.
+    Runs eval_fastq_file in parallel using multiprocessing and performs multiqc.
 
     Args:
         sample_dict (dict): A dictionary containing sample information.
         output (str): The output directory for the evaluated files.
         adapter (str): The adapter to be used for evaluation.
-        run (int): The run number for the evaluation.
-        processes (str, optional): The number of processes to be used for multiprocessing.
-            Defaults to "sample".
+        threads (int, optional): The number of threads to be used. Defaults to total number of CPU threads.
+        run (bool, optional): Whether to run the evaluation. Defaults to False.
+        processes (str, optional): The number of processes to be used for multiprocessing. Defaults to the number of samples to maximize parallelization.
 
     Returns:
         None: This function does not return anything.
@@ -293,20 +346,16 @@ def eval_fastq_files(sample_dict, output, adapter, run, processes=4) -> None:
         pool.map(
             eval_fastq_file,
             [
-                (
-                    sample_name,
-                    sample_dict[sample_name],
-                    output,
-                    adapter,
-                    num_threads,
-                    run,
-                )
+                (sample_dict[sample_name], output, adapter, threads, run)
                 for sample_name in sample_dict
             ],
         )
 
+    # Run multiqc.
+    bash(f"multiqc {output} --outdir {output}", shell=True)
 
-def remove_umi_delete_adapter(fastq_file, adapter, outfile) -> int:
+
+def remove_umi_delete_adapter(fastq_file: str, adapter: str, outfile: str) -> int:
     """
     Remove UMIs and delete adapters from a given fastq file and save the processed data to an output file.
 
@@ -358,16 +407,26 @@ def remove_umi_delete_adapter(fastq_file, adapter, outfile) -> int:
     return duplicated_lines
 
 
-def run_trimming(args) -> dict[any, str]:
+def run_trimming(
+    sample_name: str,
+    fastq_file: str,
+    adapter: str,
+    threads: int = num_threads,
+    run: bool = False,
+) -> dict[str, str]:
     """
-    Trims the given fastq file using umi removal for adapter and umi removal and cutadapt for quality trimming.
-    Args:
-        args (tuple): A tuple containing sample_name, fastq_file, adapter, num_threads, and run.
-    Returns:
-        dict: A dictionary containing the sample_name as key and the trimmed fastq file as value.
-    """
+    Trims fastq files using the specified adapter and run settings.
 
-    sample_name, fastq_file, adapter, num_threads, run = args
+    Args:
+        sample_name (str): The sample name.
+        fastq_file (str): The fastq file path.
+        adapter (str): The adapter sequence for trimming.
+        threads (int): The number of threads to use for trimming. Defaults to total number of CPU threads.
+        run (bool, optional): Whether to run the trimming. Defaults to False.
+
+    Returns:
+        Sample dictionary with sample name as key and fastq file path as value.
+    """
 
     # For each step, the file name is updated to indicate the process performed over the sample.
     # This file name change is registered in a variable called sample_dict. This is a dictionary with sample_name as key and fastq_file path as a value.
@@ -390,7 +449,7 @@ def run_trimming(args) -> dict[any, str]:
         # Cutadapt is used for quality trimming
         print("Running cutadapt {}".format(fastq_file))
         bash(
-            f"cutadapt --quiet -j {num_threads} -m 10 -M 40 -q 10 {outFileUMI} -o {outFileCut}",
+            f"cutadapt --quiet -j {threads} -m 10 -M 40 -q 10 {outFileUMI} -o {outFileCut}",
             shell=True,
         )
 
@@ -403,7 +462,13 @@ def run_trimming(args) -> dict[any, str]:
     return {sample_name: outFileCut}
 
 
-def trimming_files(sample_dict, adapter, run, processes=4) -> dict[any, str]:
+def trimming_files(
+    sample_dict: str,
+    adapter: str,
+    threads: int = num_threads,
+    run: bool = False,
+    processes: int = 4,
+) -> dict[str, str]:
     """
     A function that trims files using multiprocessing and returns a dictionary containing the trimmed files.
 
@@ -424,7 +489,7 @@ def trimming_files(sample_dict, adapter, run, processes=4) -> dict[any, str]:
         sample_dict = pool.map(
             run_trimming,
             [
-                (sample_name, sample_dict[sample_name], adapter, num_threads, run)
+                (sample_name, sample_dict[sample_name], adapter, threads, run)
                 for sample_name in sample_dict
             ],
         )
@@ -434,9 +499,11 @@ def trimming_files(sample_dict, adapter, run, processes=4) -> dict[any, str]:
     return sample_dict
 
 
-def trimming_files_slow(sample_dict, adapter, run) -> dict[any, any]:
+def trimming_files_slow(
+    sample_dict: str, adapter: str, threads: int = num_threads, run: bool = False
+) -> dict[str, str]:
     """
-    Trims files in the sample_dict using the specified adapter and run settings wihouth using multiprocessing.
+    Trims files in the sample_dict using the specified adapter and run settings without using multiprocessing.
 
     Args:
         sample_dict (dict): A dictionary containing sample names as keys and file paths as values.
@@ -451,15 +518,13 @@ def trimming_files_slow(sample_dict, adapter, run) -> dict[any, any]:
     trimmed_dict = {}
     for sample_name in sample_dict:
         trimmed_dict.update(
-            run_trimming(
-                args=(sample_name, sample_dict[sample_name], adapter, num_threads, run)
-            )
+            run_trimming(sample_name, sample_dict[sample_name], adapter, threads, run)
         )
 
     return trimmed_dict
 
 
-def convert_quality_to_numeric(quality_str) -> list[int]:
+def convert_quality_to_numeric(quality_str: str) -> list[int]:
     """
     Convert ASCII quality scores to numeric values
     """
@@ -470,12 +535,18 @@ def convert_quality_to_numeric(quality_str) -> list[int]:
     return quality_str_num
 
 
-def get_fastq_stats(args):
+def get_fastq_stats(sample_name: str, fastq: str, run: bool = False) -> None:
     """
-    Calculate and write quality and length statistics of FASTQ reads to log file.
-    """
+    Calculate statistics for fastq files.
 
-    sample_name, fastq, run = args
+    Args:
+        sample_name (str): The sample name.
+        fastq (str): The path to the fastq file.
+        run (bool, optional): Whether to run the evaluation. Defaults to False.
+
+    Returns:
+        None
+    """
 
     if run:
 
@@ -532,7 +603,9 @@ def get_fastq_stats(args):
             write_log(logfile, text, mode)
 
 
-def get_stats_fastq_files(sample_dict, run, processes=4) -> None:
+def get_stats_fastq_files(
+    sample_dict: dict, run: bool = False, processes: int = 4
+) -> None:
     """
     Calculate statistics for fastq files in parallel using multiprocessing.
 
@@ -560,7 +633,7 @@ def get_stats_fastq_files(sample_dict, run, processes=4) -> None:
         )
 
 
-def prepare_ref(fasta, ref) -> None:
+def prepare_ref(fasta: str, ref: str, threads: int = num_threads) -> None:
     """
     Prepares reference genome index for mapping using bowtie-build.
 
@@ -578,13 +651,15 @@ def prepare_ref(fasta, ref) -> None:
         ########### Launch Reference ###############
         bash(f"gunzip -k {fasta}", shell=True)
         bash(
-            f"bowtie-build {fasta.replace('.gz','')} {ref}/Bowtie/genome --threads {num_threads}",
+            f"bowtie-build {fasta.replace('.gz','')} {ref}/Bowtie/genome --threads {threads}",
             shell=True,
         )
         bash(f"rm {fasta.replace('.gz','')}", shell=True)
 
 
-def filter_gff(gene_loc, biotype, save_path, header, idmapcont_ndict):
+def filter_gff(
+    gene_loc: list, biotype: str, save_path: str, header: str, idmapcont_ndict: dict
+) -> str:
     """
     Filter gff file by biotype and save the filtered content to a new file.
 
@@ -653,7 +728,9 @@ def filter_gff(gene_loc, biotype, save_path, header, idmapcont_ndict):
     return outfile
 
 
-def prepare_biotypes(reference_folder, gff, tax, biotypes="miRNA") -> dict[str, str]:
+def prepare_biotypes(
+    reference_folder: str, gff: str, tax: str, biotypes: str = "miRNA"
+) -> dict[str, str]:
     """
     Prepare biotypes from a given GFF file for a specific taxonomy and return the filtered GFF files.
 
@@ -740,7 +817,7 @@ def prepare_biotypes(reference_folder, gff, tax, biotypes="miRNA") -> dict[str, 
     return gtf_files
 
 
-def filter_mirbase(kegg, ref_file) -> dict[str, list[str]]:
+def filter_mirbase(kegg: str, ref_file: str) -> dict[str, list[str]]:
     """
     Filter the contents of the given file based on the provided KEGG identifier.
 
@@ -774,22 +851,30 @@ def filter_mirbase(kegg, ref_file) -> dict[str, list[str]]:
     return fileCont
 
 
-def get_mirna_counts(args) -> dict[str, dict[str, any]]:
+def get_mirna_counts(
+    sample_name: str, fastq_file: str, mirbaseDB: dict
+) -> dict[str, dict[str, int | str]]:
     """
-    This function takes in three arguments: sample_name, fastq_file, and mirbaseDB.
-    It processes the fastq_file to count the occurrences of different miRNAs based on the provided mirbaseDB.
-    The function returns a dictionary containing the sample_name, mirna sequences counts, and the output file.
+    Counts the miRNAs in the given fastq file and returns a dictionary with the sample name as key and a dictionary with the miRNAs as keys and the counts as values.
+
+    Args:
+        sample_name (str): The name of the sample.
+        fastq_file (str): The path to the fastq file.
+        mirbaseDB (dict): A dictionary containing the miRNAs as keys and the identifiers as values.
+
+    Returns:
+        dict: A dictionary with the sample name as key and as a value, another dictionary with 2 key-value pairs. The first key is "mirna" and the value is a dictionary with the miRNA as key and the number of occurrences as value. The second key is "file" and the value is the name of the output fastq with the unassigned miRNAs.
     """
+
     # We use this custom function to count the miRNAs that exact match the sequence in order to reduce de computing time that requires to map and count the reads that have only partial matches to the miRNA sequences.
     # Associated reads with this functions would be not be taken into account for the mapping steps.
     # After counting the mapped reads with featureCounts, we will sum the results of both functions in order to get the total number of miRNA counts.
 
-    sample_name, fastq_file, mirbaseDB = args
     lines_list = read_gzfile(
         fastq_file
     )  # Reads the fastq file and returns a list of lines.
 
-    # After testing, the fastests way to access the data is with numpy arrays.
+    # After testing, the fastest way to access the data is with numpy arrays.
     # As each sequence has 4 lines of information on a fastq file,
     # the numpy array is used to split the list into chunks of 4 lines with
     # the zip function.
@@ -847,8 +932,8 @@ def get_mirna_counts(args) -> dict[str, dict[str, any]]:
 
 
 def mirbase_sequence_assign(
-    sample_dict, mirbaseDB, processes=4
-) -> tuple[dict[any, any], dict[any, any]]:
+    sample_dict: dict, mirbaseDB: dict, processes: int = 4
+) -> tuple[dict[str, str], dict[str, int]]:
     """
     Assigns miRNA counts and files to samples using multiprocessing.
 
@@ -896,21 +981,30 @@ def mirbase_sequence_assign(
     return sample_files, mirna_counts
 
 
-def run_aligning(args) -> dict[str, str]:
+def run_aligning(
+    sample_name: str,
+    fastq_file: str,
+    index: str,
+    threads: int = num_threads,
+    run: bool = False,
+) -> dict[str, str]:
     """
-    Run aligning with the given arguments using bowtie.
+    Aligns the fastq file to the index using bowtie.
 
     Args:
-        args (tuple): A tuple containing sample_name, fastq_file, index, num_threads, and run.
+        sample_name (str): The sample name.
+        fastq_file (str): The fastq file path.
+        index (str): The index file path.
+        threads (int): The number of threads to use for alignment. Defaults to total number of CPU threads.
+        run (bool, optional): Whether to run the alignment. Defaults to False.
 
     Returns:
-        dict: A dictionary containing the sample_name and the corresponding outBam file.
+        Sample dictionary with sample name as key and fastq file path as value.
     """
+
     # After making a first direct counting using the get_mirna_counts functions in the previous step we have reduced the number of miRNAs that need to be quantify based on their mapping quality.
     # For that we use featureCounts, which requires the sample to be aligned against the reference genome.
     # Because we have previously assign a significant portion of the reads, it reduces the computing time expend on the mapping step.
-
-    sample_name, fastq_file, index, num_threads, run = args
 
     # We obtain 3 files per sample:
 
@@ -923,7 +1017,7 @@ def run_aligning(args) -> dict[str, str]:
     if run:
         # bowtie -f -n $mismatches_seed -e 80 -l 18 -a -m $mapping_loc --best --strata $file_genome_latest $file_reads_latest $dir/mappings.bwt\n\n";
         bash(
-            f"bowtie -p {num_threads} -n 0 -l 18 --best --nomaqround -e 70 -k 1 -S {index} {fastq_file} 2>{logBowtie} | samtools view --threads {num_threads} -bS - | samtools sort --threads {num_threads} -o {outBam}",
+            f"bowtie -p {threads} -n 0 -l 18 --best --nomaqround -e 70 -k 1 -S {index} {fastq_file} 2>{logBowtie} | samtools view --threads {threads} -bS - | samtools sort --threads {threads} -o {outBam}",
             shell=True,
         )
         bash(f"samtools index {outBam}", shell=True)
@@ -931,7 +1025,13 @@ def run_aligning(args) -> dict[str, str]:
     return {sample_name: outBam}
 
 
-def align_samples(sample_dict, reference, run, processes=4) -> dict[str, str]:
+def align_samples(
+    sample_dict,
+    reference,
+    threads: int = num_threads,
+    run: bool = False,
+    processes: int = 4,
+) -> dict[str, str]:
     """
     Aligns the samples in the sample_dict to the reference using multiprocessing.
 
@@ -956,7 +1056,7 @@ def align_samples(sample_dict, reference, run, processes=4) -> dict[str, str]:
                     sample_name,
                     sample_dict[sample_name],
                     reference["index"],
-                    num_threads,
+                    threads,
                     run,
                 )
                 for sample_name in sample_dict
@@ -966,18 +1066,15 @@ def align_samples(sample_dict, reference, run, processes=4) -> dict[str, str]:
     return sample_dict
 
 
-def get_map_quality(args) -> None:
+def get_map_quality(sample_name: str, mirna_counts: dict, run: bool = False) -> None:
     """
-    Calculate the mapping quality based on the input arguments.
+    Calculates the mapping quality for each sample.
 
     Args:
-        args (tuple): A tuple containing the sample name, miRNA counts, and run.
-
-    Returns:
-        None
+        sample_name (str): The sample name.
+        mirna_counts (dict): A dictionary containing the miRNA counts for each sample.
+        run (bool, optional): Whether to run the mapping quality calculation. Defaults to False.
     """
-
-    sample_name, mirna_counts, run = args
 
     # Gets number of reads previously assigned to miRNAs by our custom script.
     mirna_counts = sum(mirna_counts.values())
@@ -1003,7 +1100,9 @@ def get_map_quality(args) -> None:
         write_log(log_file, text, mode)
 
 
-def quality_mapping_samples(sample_dict, mirna_counts, run, processes=4) -> None:
+def quality_mapping_samples(
+    sample_dict: dict, mirna_counts: dict, run: bool = False, processes: int = 4
+) -> None:
     """
     Map quality for each sample using multiprocessing.
 
@@ -1011,7 +1110,7 @@ def quality_mapping_samples(sample_dict, mirna_counts, run, processes=4) -> None
         sample_dict: A dictionary containing sample information.
         mirna_counts: A dictionary containing miRNA counts for each sample.
         run: The run information.
-        processes: The number of processes to use for multiprocessing (default is "sample").
+        processes: The number of processes to use for multiprocessing (default is 4).
 
     Returns:
         None
@@ -1030,39 +1129,52 @@ def quality_mapping_samples(sample_dict, mirna_counts, run, processes=4) -> None
         )
 
 
-def run_featurecount(args) -> dict[any, str]:
+def run_featurecount(
+    sample_name: str,
+    bam_file: str,
+    gff_file: str,
+    biotype: str,
+    threads: int = num_threads,
+    run: bool = False,
+) -> dict[any, str]:
     """
-    Function to run featureCounts on a BAM file by calling featureCounts from subread package.
+    Runs featureCounts on the bam file and returns the output file path.
 
     Args:
-        args (tuple): A tuple containing sample_name, bam_file, gtf_file, biotype, num_threads, and run.
-
-    Returns:
-        dict: A dictionary containing the sample_name as the key and the output file name as the value.
+        sample_name (str): The sample name.
+        bam_file (str): The bam file path.
+        gff_file (str): The gff file path.
+        biotype (str): The biotype to count.
+        threads (int, optional): The number of threads to use. Defaults to the total number of CPU threads.
     """
 
-    sample_name, bam_file, gff_file, biotype, num_threads, run = args
     out_name = f"05_counts/{sample_name}_{biotype}.counts.txt"
     if run:
         bash(
-            f"featureCounts -T {num_threads} -t {biotype} -g Name -s 1 -O -a {gff_file} -o {out_name} {bam_file}",
+            f"featureCounts -T {threads} -t {biotype} -g Name -s 1 -O -a {gff_file} -o {out_name} {bam_file}",
             shell=True,
         )
     return {sample_name: out_name}
 
 
 def quantify_biotype(
-    sample_dict, gff_file, biotype, run, processes=4
+    sample_dict: dict,
+    gff_file: str,
+    biotype: str,
+    threads: int = num_threads,
+    run: bool = False,
+    processes: int = 4,
 ) -> dict[str, str]:
     """
-    Quantifies the biotype of samples using multiprocessing.
+    Runs run_featurecount in parallel using multiprocessing.
 
     Args:
-        sample_dict: A dictionary containing sample names as keys and sample data as values.
-        gtf_file: The file path of the GFF file.
-        biotype: The biotype to quantify.
-        run: The run identifier.
-        processes: The number of processes to use (default is "sample").
+        sample_dict (dict): A dictionary containing sample names as keys and sample data as values.
+        gff_file (str): The gff file path.
+        biotype (str): The biotype to count.
+        threads (int, optional): The number of threads to use. Defaults to the total number of CPU threads.
+        run (bool, optional): Whether to run the evaluation. Defaults to False.
+        processes (int, optional): The number of processes to use for multiprocessing. Defaults to the number of samples to maximize parallelization.
 
     Returns:
         A dictionary containing the quantified biotypes for each sample.
@@ -1070,8 +1182,6 @@ def quantify_biotype(
 
     if processes == 0:
         processes = len(sample_dict)
-
-    num_trheads = multiprocessing.cpu_count()
 
     with Pool(processes) as pool:
         sample_dict = pool.map(
@@ -1082,7 +1192,7 @@ def quantify_biotype(
                     sample_dict[sample_name],
                     gff_file,
                     biotype,
-                    num_trheads,
+                    threads,
                     run,
                 )
                 for sample_name in sample_dict
@@ -1092,19 +1202,20 @@ def quantify_biotype(
     return sample_dict
 
 
-def quantify_mirnas(args) -> None:
+def quantify_mirnas(sample_name: str, mirna_counts: dict, run: bool = False) -> None:
     """
-    Quantifies miRNAs based on the given arguments.
+    This functions sums the number of assigned reads by the script and by featureCounts.
 
     Args:
-        args (tuple): A tuple containing sample_name (str), mirna_counts (dict), and run (str).
+        sample_name: The sample name.
+        mirna_counts: A dictionary containing miRNA counts for each sample.
+        run: The run identifier.
 
     Returns:
         None
     """
     # This function gets the number of assigned reads by the script and by featureCounts.
 
-    sample_name, mirna_counts, run = args
     mirna_counts = sum(mirna_counts.values())
     with open(f"05_counts/{sample_name}_miRNA.counts.txt.summary", "r") as f:
         file_cont = f.readlines()
@@ -1122,15 +1233,17 @@ def quantify_mirnas(args) -> None:
         write_log(log_file, text, mode)
 
 
-def quantify_samples(sample_dict, mirna_counts, run, processes=4) -> None:
+def quantify_samples(
+    sample_dict: dict, mirna_counts: dict, run: bool = False, processes: int = 4
+) -> None:
     """
-    Quantify samples using multiprocessing and a pool of processes.
+    Runs quantify_mirnas in parallel using multiprocessing.
 
     Args:
-        sample_dict: A dictionary containing sample information.
-        mirna_counts: A dictionary containing miRNA counts for each sample.
-        run: Information about the run.
-        processes (str): Number of processes to use for multiprocessing. Defaults to "sample".
+        sample_dict (dict): A dictionary containing sample information.
+        mirna_counts (dict): A dictionary containing miRNA counts for each sample.
+        run (bool, optional): Flag indicating whether the function should run. Defaults to False.
+        processes (int, optional): The number of processes to use for multiprocessing. Defaults to 4. If 0 is specified, use the number of samples to maximize parallelization.
 
     Returns:
         None
@@ -1149,23 +1262,31 @@ def quantify_samples(sample_dict, mirna_counts, run, processes=4) -> None:
         )
 
 
-def concat_mirna(args) -> dict[any, str]:
+def concat_mirna(
+    sample_name: str,
+    count_file: str,
+    mirna_counts: dict,
+    mirbaseDB=dict,
+    use_mirbase: str = None,
+) -> dict[str, str]:
     """
-    Concatenate miRNA counts from different sources and write the combined counts to a file.
+    This function merges the results from the featureCounts and the get_mirna_count functions.
 
     Args:
-        args (tuple): A tuple containing sample_name (str), count_file (str), mirna_counts (dict), use_mirbase (str), and mirbaseDB (dict).
+        sample_name (str): The sample name.
+        count_file (str): The count file path.
+        mirna_counts (dict): A dictionary containing miRNA counts for each sample.
+        use_mirbase (str): When the species we are analyzing is not in mirBase, left use_mirbase emtpy and the data from the available database will be used.
+        mirbaseDB (dict): mirBase database.
 
     Returns:
-        dict: A dictionary containing the sample name as key and the file path as value.
+        A dictionary containing the merged results.
     """
     # This function merges the results from the featureCounts and the get_mirna_count functions.
     # Count file is the output from featureCounts and miRNA the output from the script.
     # Remember: mirbaseDB is the output from the filter_mirbase function. The keys are the sequences and the values are the identifiers.
     # use_mirbase in this case is used as a flag. When the species we are using is not mirBase, use_mirbase is emtpy (None) and we will use the data from the available database.
 
-    # Unpack the arguments.
-    sample_name, count_file, mirna_counts, use_mirbase, mirbaseDB = args
     print(count_file)
     with open(count_file) as f:
         read_count = f.readlines()
@@ -1230,20 +1351,24 @@ def concat_mirna(args) -> dict[any, str]:
 
 
 def concat_mirna_samples(
-    sample_dict, mirna_counts, use_mirbase, mirbaseDB, processes=4
-) -> dict[any, any]:
+    sample_dict: dict,
+    mirna_counts: dict,
+    mirbaseDB: dict,
+    use_mirbase: str = None,
+    processes: int = 4,
+) -> dict[str, str]:
     """
-    Concatenates miRNA samples and returns a dictionary.
+    Runs concat_mirna in parallel using multiprocessing.
 
     Args:
-        sample_dict: Dictionary containing miRNA samples
-        mirna_counts: miRNA counts
-        use_mirbase: Flag to use mirBase
-        mirbaseDB: mirBase database
-        processes: Number of processes to run in parallel (default is "sample")
+        sample_dict (dict): A dictionary containing sample names as keys and sample data as values.
+        mirna_counts (dict): A dictionary containing miRNA counts for each sample.
+        use_mirbase (str): When the species we are analyzing is not in mirBase, left use_mirbase emtpy and the data from the available database will be used.
+        mirbaseDB (dict): The mirBase database to be used for assigning miRNA counts and files.
+        processes (int, optional): The number of processes to use for multiprocessing. Defaults to "4". If 0 is specified, use the number of samples to maximize parallelization.
 
     Returns:
-        dict: Concatenated miRNA samples
+        A dictionary containing the concatenated miRNA counts for each sample.
     """
 
     if processes == 0:
@@ -1267,7 +1392,9 @@ def concat_mirna_samples(
     return sample_dict
 
 
-def merge_count_files(suffix, run, folder_path="05_counts/") -> None:
+def merge_count_files(
+    suffix: str, run: bool = False, folder_path: str = "05_counts/"
+) -> None:
     """
     Merge count files with the given suffix and store the result in a new TSV file.
     This function is intended to be used with the "1_6_merge_count_files.py" script.
@@ -1275,7 +1402,7 @@ def merge_count_files(suffix, run, folder_path="05_counts/") -> None:
 
     Args:
         suffix (str): The file suffix to filter count files.
-        run (str): The run number.
+        run (str, optional): Whether to run the evaluation. Defaults to False.
         folder_path (str, optional): The folder path where the count files are stored. Defaults to "05_counts/".
 
     Returns:
@@ -1322,16 +1449,25 @@ def merge_count_files(suffix, run, folder_path="05_counts/") -> None:
         )
 
 
-def create_colData(groups, suffix, read_type, run, folder_path="05_counts/") -> None:
+def create_colData(
+    groups: str,
+    suffix: str,
+    read_type: str,
+    folder_path: str = "05_counts/",
+    run: bool = False,
+) -> None:
     """
     Create colData file for DESeq2 based on the given groups, suffix, and read_type, and store it in a TSV file in the specified folder_path.
-    Parameters:
-    - groups: list of groups to match in the file names. They are used to recognise the sample group.
-    - suffix: file suffix to match and remove thereafter.
-    - read_type: single-read or pair-end.
-    - folder_path: path of the folder where the files and TSV file will be stored (default is "05_counts/")
+
+    Args:
+        groups (tuple): A tuple of group names.
+        suffix (str): The file suffix to filter count files.
+        read_type (str): The type of sequencing, either single-read or pair-end.
+        run (bool, optional): Whether to run the evaluation. Defaults to False.
+        folder_path (str, optional): The folder path where the colData file will be stored. Defaults to "05_counts/".
+
     Returns:
-    - None
+        None
     """
 
     if run:

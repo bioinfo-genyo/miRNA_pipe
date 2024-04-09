@@ -5,6 +5,7 @@ This is the third step of the analysis, mapping the reads to the reference genom
         -R, --ref (str): The reference directory where all files will be stored.
         -K, --kegg (str): The kegg biotype to filter de miRNA database (hsa for human).
         -L, --run (str): Run control variable (1 to run).
+        -T, --threads (int): The number of threads to use in applications that allow multithreading. Default is the number of CPU threads.
         -P, --processes (str): The number of cpu threads to use. Default is 4. If 0 is specified, use the number of samples to maximize parallelization.
 """
 
@@ -18,20 +19,23 @@ from functions.libs import (
     align_samples,
     quality_mapping_samples,
 )
+from multiprocessing import cpu_count
 
 # Gets the command line arguments with argparse.
 parser = argparse.ArgumentParser()
 parser.add_argument("-R", "--ref", type=str)
 parser.add_argument("-K", "--kegg", type=str)
 parser.add_argument("-L", "--run", type=bool, default=False)
+parser.add_argument("-T", "--threads", type=int, default=cpu_count())
 parser.add_argument("-P", "--processes", type=int, default=4)
 args = vars(parser.parse_args())
 
 # Assign the command line arguments to variables.
-reference_folder, kegg, run, processes = (
+reference_folder, kegg, run, threads, processes = (
     args["ref"],
     args["kegg"],
     args["run"],
+    args["threads"],
     args["processes"],
 )
 
@@ -55,7 +59,7 @@ mirbaseDB = filter_mirbase(kegg, ref_file)
 sample_dict, mirna_counts = mirbase_sequence_assign(sample_dict, mirbaseDB, processes)
 
 # Aligns not counted reads.
-sample_dict = align_samples(sample_dict, bowtie_reference, run, processes)
+sample_dict = align_samples(sample_dict, bowtie_reference, threads, run, processes)
 quality_mapping_samples(sample_dict, mirna_counts, run, processes)
 
 # Writes out the sample dict as a json file in order to be exchangeable with the other scripts.

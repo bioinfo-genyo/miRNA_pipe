@@ -5,7 +5,8 @@ This is the first step of the data pre-processing, delete the adapter and UMIs f
         -I, --input_dir (str): Input directory.
         -A, --adapter (str): Adapter sequence to remove. Default is the Illumina universal adapter.
         -R, --run (str): Run control variable (1 to run).
-        -L, --slow (str): Slow mode. It only uses one thread. Use in case the memory use overwhelms the system capabilities.
+        -L, --slow (str): Flag that activates slow mode. It only uses one thread. Use in case the memory use overwhelms the system capabilities.
+        -T, --threads (int): The number of threads to use in applications that allow multithreading. Default is the number of CPU threads.
         -P, --processes (str): The number of cpu threads to use. Default is 4. If 0 is specified, use the number of samples to maximize parallelization.
         -a, --append_sample_dict (str): If specified, appends an existing sample dictionary to the new one.
 """
@@ -21,6 +22,7 @@ from functions.libs import (
     get_stats_fastq_files,
     trimming_files_slow,
 )
+from multiprocessing import cpu_count
 
 # Gets the command line arguments with argparse.
 parser = argparse.ArgumentParser()
@@ -28,18 +30,20 @@ parser.add_argument("-I", "--input_dir", type=str)
 parser.add_argument("-A", "--adapter", type=str, default="AGATCGGAAGAG")
 parser.add_argument("-R", "--run", type=bool, default=False)
 parser.add_argument(
-    "-L", "--slow", type=bool, default=False
+    "-L", "--slow", action="store_true"
 )  # Much slower processing, but less memory-intensive.
+parser.add_argument("-T", "--threads", type=int, default=cpu_count())
 parser.add_argument("-P", "--processes", type=int, default=4)
 parser.add_argument("-a", "--append_sample_dict", action="store_true")
 args = vars(parser.parse_args())
 
 # Assign the command line arguments to variables.
-input_dir, adapter, run, slow, processes, append = (
+input_dir, adapter, run, slow, threads, processes, append = (
     args["input_dir"],
     args["adapter"],
     args["run"],
     args["slow"],
+    args["threads"],
     args["processes"],
     args["append_sample_dict"],
 )
@@ -67,14 +71,12 @@ mkdir("02_trim/")
 # Run the fastqc and trimming steps.
 if slow:
     # Much lower, but less memory intensive.
-    sample_dict = trimming_files_slow(sample_dict, adapter, run)
+    sample_dict = trimming_files_slow(sample_dict, adapter, threads, run)
 else:
-    eval_fastq_files(sample_dict, "FastQC/Raw", adapter, run, processes)
-    sample_dict = trimming_files(sample_dict, adapter, run, processes)
-    eval_fastq_files(sample_dict, "FastQC/Trim", "None", run, processes)
+    eval_fastq_files(sample_dict, "FastQC/Raw", adapter, threads, run, processes)
+    sample_dict = trimming_files(sample_dict, adapter, threads, run, processes)
+    eval_fastq_files(sample_dict, "FastQC/Trim", "None", threads, run, processes)
     get_stats_fastq_files(sample_dict, run, processes)
-
-
 
 # If we want to operate over files stored in different folders, it is necessary to run this script on each folder separately.
 # The append option allows us to append the sample dict of the new samples to the previous one.
