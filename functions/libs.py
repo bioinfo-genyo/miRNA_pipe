@@ -573,12 +573,10 @@ def get_fastq_stats(args: tuple) -> None:
         # Calculates the mean, median, and standard deviation of the quality scores for each position.
         # It uses numpy arrays to perform the calculations quickly.
         for pos in range(1, max_i + 1):  # +1 to include the last position.
-            qual = numpy.array(
-                [seq[pos - 1] for seq in read_quality if len(seq) >= pos]
-            )
-            mean_qual = numpy.mean(qual)
-            median_qual = numpy.median(qual)
-            sd_qual = numpy.std(qual)
+            qual = np.array([seq[pos - 1] for seq in read_quality if len(seq) >= pos])
+            mean_qual = np.mean(qual)
+            median_qual = np.median(qual)
+            sd_qual = np.std(qual)
             quality_stats[str(pos)] = {
                 "nreads": len(qual),  # number of reads.
                 "median": median_qual,  # median of the quality scores.
