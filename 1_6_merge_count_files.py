@@ -40,15 +40,9 @@ groups = tuple(map(str, groups.split(",")))
 mkdir("06_output/")
 
 # Merges all the sample counts to create the count matrix.
-merge_count_files(suffix=suffix, run=run, folder_path=folder_path)
+merge_count_files(suffix, folder_path, run)
 
 # Creates the colData file on request.
 if colData:
 
-    create_colData(
-        groups=groups,
-        suffix=suffix,
-        read_type=read_type,
-        run=run,
-        folder_path=folder_path,
-    )
+    create_colData(groups, suffix, read_type, folder_path, run)

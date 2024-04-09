@@ -358,12 +358,12 @@ def remove_umi_delete_adapter(fastq_file: str, adapter: str, outfile: str) -> in
     Remove UMIs and delete adapters from a given fastq file and save the processed data to an output file.
 
     Args:
-    fastq_file (str): The input fastq file path.
-    adapter (str): The adapter sequence to be removed. WARNING: If the adapter sequence is not correct, the function will output an empty file.
-    outfile (str): The output file path to save the processed data.
+        fastq_file (str): The input fastq file path.
+        adapter (str): The adapter sequence to be removed. WARNING: If the adapter sequence is not correct, the function will output an empty file.
+        outfile (str): The output file path to save the processed data.
 
     Returns:
-    int: The total count of duplicated lines after processing.
+        int: The total count of duplicated lines after processing.
     """
 
     # Creates a list of lines from the fastq file. The file is contained in a generator that will only read the lines when requested.
@@ -505,9 +505,10 @@ def trimming_files_slow(
     Trims files in the sample_dict using the specified adapter and run settings without using multiprocessing.
 
     Args:
-        sample_dict (dict): A dictionary containing sample names as keys and file paths as values.
-        adapter (str): The adapter sequence for trimming.
-        run (str): The run settings for trimming.
+        sample_dict (dict): A dictionary containing sample names as keys and sample files paths as values.
+        adapter (str): The adapter used for trimming.
+        threads (int, optional): The number of threads to use for trimming. Defaults to total number of CPU threads.
+        run (bool, optional): Whether to run the trimming. Defaults to False.
 
     Returns:
         dict: A dictionary containing trimmed sample names as keys and trimmed file paths as values.
@@ -542,7 +543,7 @@ def get_fastq_stats(args: tuple) -> None:
         args (tuple): The arguments must be input in a single tuple with the following components (allows multiprocessing):
             sample_name (str): The sample name.
             fastq (str): The path to the fastq file.
-            run (bool, optional): Whether to run the evaluation. Defaults to False.
+            run (bool): Whether to run the evaluation.
 
     Returns:
         None
@@ -612,14 +613,12 @@ def get_stats_fastq_files(
     run: bool = False,
 ) -> None:
     """
-    Calculate statistics for fastq files in parallel using multiprocessing.
+    Runs get_fastq_stats in parallel using multiprocessing.
 
     Args:
-        sample_dict (dict): A dictionary containing sample names as keys and
-            fastq file paths as values.
-        run (str): The run identifier.
-        processes (str, optional): The number of processes to use. Defaults to
-            "sample".
+        sample_dict (dict): A dictionary containing sample names as keys and fastq file paths as values.
+        processes (int, optional): The number of processes to be used. Defaults to 4.
+        run (bool, optional): Whether to run the evaluation. Defaults to False.
 
     Returns:
         None
@@ -667,7 +666,7 @@ def filter_gff(
     gene_loc: list, biotype: str, save_path: str, header: str, idmapcont_ndict: dict
 ) -> str:
     """
-    Filter gff file by biotype and save the filtered content to a new file.
+    Filters gff file by biotype and save the filtered content to a new file.
 
     Args:
         gene_loc (list): List of lines from the gff file.
@@ -738,16 +737,16 @@ def prepare_biotypes(
     reference_folder: str, gff: str, tax: str, biotypes: str = "miRNA"
 ) -> dict[str, str]:
     """
-    Prepare biotypes from a given GFF file for a specific taxonomy and return the filtered GFF files.
+    Prepares biotypes from a given GFF file for a specific taxonomy and return the filtered GFF files.
 
     Args:
-    - reference_folder: A string representing the directory where the GFF file will be saved.
-    - gff: A string representing the path to the input GFF file.
-    - tax: A string representing the taxonomy for filtering the GFF file.
-    - biotypes: A string or list of strings representing the biotypes to filter the GFF file (default is "miRNA").
+        reference_folder (str): The path to the reference folder.
+        gff (str): The path to the GFF file.
+        tax (str): The taxonomy ID.
+        biotypes (str, optional): The biotypes to prepare. Defaults to "miRNA".
 
     Returns:
-    A dictionary containing filtered GFF files for the specified biotypes.
+        dict: A dictionary containing filtered GFF files for the specified biotypes.
     """
 
     # Downloads the gff file and saves it in the reference folder.
@@ -943,17 +942,16 @@ def mirbase_sequence_assign(
     sample_dict: dict, mirbaseDB: dict, processes: int = 4
 ) -> tuple[dict[str, str], dict[str, int]]:
     """
-    Assigns miRNA counts and files to samples using multiprocessing.
+    Runs get_mirna_counts in parallel using multiprocessing.
 
     Args:
-        sample_dict: A dictionary containing sample names as keys and sample data as values.
-        mirbaseDB: The miRNA database to be used for assigning miRNA counts and files.
-        processes: The number of processes to use for multiprocessing. Defaults to "sample".
-
+        sample_dict (dict): A dictionary containing sample names as keys and sample data as values.
+        mirbaseDB (dict): The mirBase database to be used for assigning miRNA counts and files.
+        processes (int, optional): The number of processes to use for multiprocessing. Defaults to "4". If 0 is specified, use the number of samples to maximize parallelization.
     Returns:
-        A tuple containing two dictionaries:
-        - The first dictionary maps sample names to their corresponding files.
-        - The second dictionary maps sample names to their corresponding miRNA counts.
+        tuple[dict[str, str], dict[str, int]]: A tuple containing two dictionaries:
+            The first dictionary maps sample names to their corresponding files.
+            The second dictionary maps sample names to their corresponding miRNA counts.
     """
 
     if processes == 0:
@@ -1033,20 +1031,20 @@ def run_aligning(args: tuple) -> dict[str, str]:
 
 
 def align_samples(
-    sample_dict,
-    reference,
+    sample_dict: dict,
+    reference: str,
     threads: int = num_threads,
     processes: int = 4,
     run: bool = False,
 ) -> dict[str, str]:
     """
-    Aligns the samples in the sample_dict to the reference using multiprocessing.
+    Runs run_aligning in parallel using multiprocessing and returns a dictionary containing the aligned samples' paths.
 
     Args:
-        sample_dict (dict): A dictionary containing the samples to be aligned.
-        reference (object): The reference object to which the samples will be aligned.
-        run (object): The run object for the alignment process.
-        processes (str, optional): The number of processes for alignment. Defaults to "sample".
+        sample_dict (dict): A dictionary containing sample names as keys and sample files paths as values.
+        reference (str): The reference directory.
+        processes (str, optional): The number of processes for alignment. If 0 is specified, use the number of samples to maximize parallelization.
+        run (bool, optional): Whether to run the alignment. Defaults to False.
 
     Returns:
         dict: A dictionary containing the aligned samples.
@@ -1119,13 +1117,13 @@ def quality_mapping_samples(
     run: bool = False,
 ) -> None:
     """
-    Map quality for each sample using multiprocessing.
+    Runs get_map_quality in parallel using multiprocessing.
 
     Args:
-        sample_dict: A dictionary containing sample information.
-        mirna_counts: A dictionary containing miRNA counts for each sample.
-        run: The run information.
-        processes: The number of processes to use for multiprocessing (default is 4).
+        sample_dict (dict): A dictionary containing sample names as keys and sample files paths as values.
+        mirna_counts (dict): A dictionary containing the miRNA counts for each sample.
+        processes (str, optional): The number of processes for mapping quality. If 0 is specified, use the number of samples to maximize parallelization.
+        run (bool, optional): Whether to run the mapping quality calculation. Defaults to False.
 
     Returns:
         None
@@ -1222,9 +1220,9 @@ def quantify_mirnas(args: tuple) -> None:
 
     Args:
         args (tuple): The arguments must be input in a single tuple with the following components (allows multiprocessing):
-            sample_name: The sample name.
-            mirna_counts: A dictionary containing miRNA counts for each sample.
-            run: The run identifier.
+            sample_name (str): The sample name.
+            mirna_counts (dict): The mirna counts dictionary.
+            run (bool): Whether to run the quantification.
 
     Returns:
         None
@@ -1263,8 +1261,8 @@ def quantify_samples(
     Args:
         sample_dict (dict): A dictionary containing sample information.
         mirna_counts (dict): A dictionary containing miRNA counts for each sample.
-        run (bool, optional): Flag indicating whether the function should run. Defaults to False.
         processes (int, optional): The number of processes to use for multiprocessing. Defaults to 4. If 0 is specified, use the number of samples to maximize parallelization.
+        run (bool, optional): Flag indicating whether the function should run. Defaults to False.
 
     Returns:
         None
@@ -1414,7 +1412,7 @@ def concat_mirna_samples(
 
 
 def merge_count_files(
-    suffix: str, run: bool = False, folder_path: str = "05_counts/"
+    suffix: str, folder_path: str = "05_counts/", run: bool = False
 ) -> None:
     """
     Merge count files with the given suffix and store the result in a new TSV file.
@@ -1423,8 +1421,8 @@ def merge_count_files(
 
     Args:
         suffix (str): The file suffix to filter count files.
-        run (str, optional): Whether to run the evaluation. Defaults to False.
         folder_path (str, optional): The folder path where the count files are stored. Defaults to "05_counts/".
+        run (bool, optional): Whether to run the evaluation. Defaults to False.
 
     Returns:
         None
@@ -1481,11 +1479,11 @@ def create_colData(
     Create colData file for DESeq2 based on the given groups, suffix, and read_type, and store it in a TSV file in the specified folder_path.
 
     Args:
-        groups (tuple): A tuple of group names.
+        groups (str): A comma-separated string including the codes in the file names identifying the experiment groups.
         suffix (str): The file suffix to filter count files.
         read_type (str): The type of sequencing, either single-read or pair-end.
-        run (bool, optional): Whether to run the evaluation. Defaults to False.
         folder_path (str, optional): The folder path where the colData file will be stored. Defaults to "05_counts/".
+        run (bool, optional): Whether to run the evaluation. Defaults to False.
 
     Returns:
         None

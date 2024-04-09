@@ -30,21 +30,21 @@ parser.add_argument("-X", "--tax", type=str)
 parser.add_argument("-G", "--gff", type=str)
 parser.add_argument("-K", "--kegg", type=str)
 parser.add_argument("-M", "--use-mirbase", type=str, default=None)
-parser.add_argument("-L", "--run", type=bool, default=False)
 parser.add_argument("-T", "--threads", type=int, default=cpu_count())
 parser.add_argument("-P", "--processes", type=int, default=4)
+parser.add_argument("-L", "--run", type=bool, default=False)
 args = vars(parser.parse_args())
 
 # Assign the command line arguments to variables.
-reference_folder, tax, gff, kegg, use_mirbase, run, threads, processes = (
+reference_folder, tax, gff, kegg, use_mirbase, threads, processes, run = (
     args["ref"],
     args["tax"],
     args["gff"],
     args["kegg"],
     args["use_mirbase"],
-    args["run"],
     args["threads"],
     args["processes"],
+    args["run"],
 )
 
 # Loads the sample dictionary and the paths to count files.
@@ -69,9 +69,11 @@ if use_mirbase != "0":
 # Quantifies only the miRNAs.
 for biotype in gtf_files:
     gtf_file = gtf_files[biotype]
-    sample_files_bio = quantify_biotype(sample_dict, gtf_file, biotype, threads, run, processes)
+    sample_files_bio = quantify_biotype(
+        sample_dict, gtf_file, biotype, threads, processes, run
+    )
     if biotype == "miRNA":
-        quantify_samples(sample_files_bio, mirna_counts, run, processes)
+        quantify_samples(sample_files_bio, mirna_counts, processes, run)
         sample_files_bio = concat_mirna_samples(
             sample_files_bio, mirna_counts, mirbaseDB, use_mirbase, processes
         )

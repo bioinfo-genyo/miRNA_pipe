@@ -25,18 +25,18 @@ from multiprocessing import cpu_count
 parser = argparse.ArgumentParser()
 parser.add_argument("-R", "--ref", type=str)
 parser.add_argument("-K", "--kegg", type=str)
-parser.add_argument("-L", "--run", type=bool, default=False)
 parser.add_argument("-T", "--threads", type=int, default=cpu_count())
 parser.add_argument("-P", "--processes", type=int, default=4)
+parser.add_argument("-L", "--run", type=bool, default=False)
 args = vars(parser.parse_args())
 
 # Assign the command line arguments to variables.
-reference_folder, kegg, run, threads, processes = (
+reference_folder, kegg, threads, processes, run = (
     args["ref"],
     args["kegg"],
-    args["run"],
     args["threads"],
     args["processes"],
+    args["run"],
 )
 
 # Gets reference location.
@@ -59,8 +59,8 @@ mirbaseDB = filter_mirbase(kegg, ref_file)
 sample_dict, mirna_counts = mirbase_sequence_assign(sample_dict, mirbaseDB, processes)
 
 # Aligns not counted reads.
-sample_dict = align_samples(sample_dict, bowtie_reference, threads, run, processes)
-quality_mapping_samples(sample_dict, mirna_counts, run, processes)
+sample_dict = align_samples(sample_dict, bowtie_reference, threads, processes, run)
+quality_mapping_samples(sample_dict, mirna_counts, processes, run)
 
 # Writes out the sample dict as a json file in order to be exchangeable with the other scripts.
 with open("00_log/1_4_bam.json", "w") as jsonfile:
