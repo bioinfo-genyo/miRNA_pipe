@@ -1,4 +1,18 @@
 from typing import Generator, Literal
+from multiprocessing import Pool, cpu_count
+import collections
+import shutil
+from subprocess import run as bash
+import os
+import glob
+import tqdm
+import requests
+import gzip
+import numpy as np
+import pandas as pd
+import re
+
+num_threads = cpu_count()
 
 
 def detect_paired_single(sampleName, listFiles) -> Literal["paired", "single"]:
@@ -33,16 +47,13 @@ def shutil_python(output_file, input_files) -> None:
         None
     """
 
-    import shutil
-    import subprocess
-
     # Concatenate the data from the input files
     with open(output_file, "wb") as out:
         for input_file in input_files:
             with open(input_file, "rb") as f_in:
                 shutil.copyfileobj(f_in, out)
     # Compress the concatenated data
-    subprocess.run(["gzip", output_file], check=True)
+    bash(["gzip", output_file], check=True)
 
 
 def zcat_files(output_file, input_files) -> None:
@@ -56,8 +67,6 @@ def zcat_files(output_file, input_files) -> None:
     Returns:
         None
     """
-
-    import os
 
     os.system("zcat {} >{}".format(" ".join(input_files), output_file))
     os.system("gzip {}".format(output_file))
@@ -76,8 +85,6 @@ def concatenate_files(args) -> dict[any, dict[any, any]]:
         dict: A dictionary with sample name as key and a nested dictionary containing
         file information as value.
     """
-
-    import os
 
     sampleName, listFiles, run = args
     paired_or_single = detect_paired_single(sampleName, listFiles)
@@ -115,7 +122,6 @@ def mkdir(dir) -> None:
     """
     Function to create a directory
     """
-    import os
 
     if not os.path.exists(dir):
         os.mkdir(dir)
@@ -125,8 +131,6 @@ def list_dir_files(dir, pattern="None") -> list[str]:
     """
     Function to list the files of a directory
     """
-
-    import glob
 
     if pattern == "None":
         files = glob.glob(f"{dir}/*")
@@ -140,8 +144,6 @@ def copy_files(or_file, to_file) -> None:
     Function to copy files from source to dest
     """
 
-    import shutil
-
     shutil.copy(or_file, to_file)
 
 
@@ -149,8 +151,6 @@ def rm_file(file) -> None:
     """
     Function to remove file if it exists
     """
-
-    import os
 
     if os.path.exists(file):
         os.remove(file)
@@ -160,10 +160,6 @@ def download_file(url, filename, force=False) -> None:
     """
     Function to download files and files.gz
     """
-
-    import os
-    import requests
-    import tqdm
 
     # First check if the file already exists.
     if (
@@ -200,8 +196,6 @@ def get_sample_name(file_names) -> list[any]:
     Function to list the sample names of a list of fastq files
     """
 
-    import os
-
     return list(
         set(
             [
@@ -218,8 +212,6 @@ def read_gzfile(filename) -> Generator[bytes | str, any, None]:
     """
     Function to read a gz file
     """
-
-    import gzip
 
     with gzip.open(filename, "rt") as f:
         for line in f:
@@ -249,13 +241,10 @@ def eval_fastq_file(args) -> None:
     Takes arguments for sample name, sample dictionary, output, adapter, threads, and run.
     """
 
-    import numpy as np
-
     sample_name, sample_dict, output, adapter, threads, run = args
-    import subprocess
 
     if run:
-        subprocess.run(f"fastqc {sample_dict} -o {output} -t {threads}", shell=True)
+        bash(f"fastqc {sample_dict} -o {output} -t {threads}", shell=True)
     log_file = f"00_log/{sample_name}.log"
     if adapter != "None":
         if run:
@@ -301,11 +290,7 @@ def eval_fastq_files(sample_dict, output, adapter, run, processes=4) -> None:
     if processes == 0:
         processes = len(sample_dict)
 
-    import multiprocessing
-
-    num_threads = multiprocessing.cpu_count()
-
-    with multiprocessing.Pool(processes) as pool:
+    with Pool(processes) as pool:
         pool.map(
             eval_fastq_file,
             [
@@ -334,9 +319,6 @@ def remove_umi_delete_adapter(fastq_file, adapter, outfile) -> int:
     Returns:
     int: The total count of duplicated lines after processing.
     """
-
-    import gzip
-    import numpy as np
 
     # Creates a list of lines from the fastq file. The file is contained in a generator that will only read the lines when requested.
     lines_list = read_gzfile(fastq_file)
@@ -386,8 +368,6 @@ def run_trimming(args) -> dict[any, str]:
         dict: A dictionary containing the sample_name as key and the trimmed fastq file as value.
     """
 
-    import subprocess
-
     sample_name, fastq_file, adapter, num_threads, run = args
 
     # For each step, the file name is updated to indicate the process performed over the sample.
@@ -410,7 +390,7 @@ def run_trimming(args) -> dict[any, str]:
 
         # Cutadapt is used for quality trimming
         print("Running cutadapt {}".format(fastq_file))
-        subprocess.run(
+        bash(
             f"cutadapt --quiet -j {num_threads} -m 10 -M 40 -q 10 {outFileUMI} -o {outFileCut}",
             shell=True,
         )
@@ -441,12 +421,7 @@ def trimming_files(sample_dict, adapter, run, processes=4) -> dict[any, str]:
     if processes == 0:
         processes = len(sample_dict)
 
-    import multiprocessing
-    import collections
-
-    num_threads = multiprocessing.cpu_count()
-
-    with multiprocessing.Pool(processes) as pool:
+    with Pool(processes) as pool:
         sample_dict = pool.map(
             run_trimming,
             [
@@ -472,10 +447,6 @@ def trimming_files_slow(sample_dict, adapter, run) -> dict[any, any]:
     Returns:
         dict: A dictionary containing trimmed sample names as keys and trimmed file paths as values.
     """
-
-    from multiprocessing import cpu_count
-
-    num_threads = cpu_count()
 
     # Im case the RAM is not enough, only one sample is processed at a time.
     trimmed_dict = {}
@@ -506,9 +477,8 @@ def get_fastq_stats(args):
     """
 
     sample_name, fastq, run = args
+
     if run:
-        import numpy
-        import numpy as np
 
         # Follows the same strategy for file reading as in eval_fastq_file.
         lines = read_gzfile(fastq)
@@ -581,9 +551,7 @@ def get_stats_fastq_files(sample_dict, run, processes=4) -> None:
     if processes == 0:
         processes = len(sample_dict)
 
-    import multiprocessing
-
-    with multiprocessing.Pool(processes) as pool:
+    with Pool(processes) as pool:
         pool.map(
             get_fastq_stats,
             [
@@ -605,20 +573,16 @@ def prepare_ref(fasta, ref) -> None:
         None
     """
 
-    from multiprocessing import cpu_count
-
-    num_threads = cpu_count()
-
     mkdir(f"{ref}/Bowtie")
     bw_files = list_dir_files(f"{ref}/Bowtie")
     if len(bw_files) == 0:
         ########### Launch Reference ###############
-        subprocess.run(f"gunzip -k {fasta}", shell=True)
-        subprocess.run(
+        bash(f"gunzip -k {fasta}", shell=True)
+        bash(
             f"bowtie-build {fasta.replace('.gz','')} {ref}/Bowtie/genome --threads {num_threads}",
             shell=True,
         )
-        subprocess.run(f"rm {fasta.replace('.gz','')}", shell=True)
+        bash(f"rm {fasta.replace('.gz','')}", shell=True)
 
 
 def filter_gff(gene_loc, biotype, save_path, header, idmapcont_ndict):
@@ -704,9 +668,6 @@ def prepare_biotypes(reference_folder, gff, tax, biotypes="miRNA") -> dict[str, 
     A dictionary containing filtered GFF files for the specified biotypes.
     """
 
-    import gzip
-    import os
-
     # Downloads the gff file and saves it in the reference folder.
     save_path = os.path.join(
         reference_folder, os.path.basename(gff)
@@ -746,11 +707,9 @@ def prepare_biotypes(reference_folder, gff, tax, biotypes="miRNA") -> dict[str, 
         f"{ref}/id_mapping.tsv.gz",
     )
 
-    import subprocess
-
     # Filter the RNAcentral database based on the taxonomy (9606 for human).
     if not os.path.exists(f"{reference_folder}/id_map.tsv.gz"):
-        subprocess.run(
+        bash(
             f"zcat {ref}/id_mapping.tsv.gz | grep {tax} >{reference_folder}/id_map.tsv",
             shell=True,
         )
@@ -826,9 +785,6 @@ def get_mirna_counts(args) -> dict[str, dict[str, any]]:
     # Associated reads with this functions would be not be taken into account for the mapping steps.
     # After counting the mapped reads with featureCounts, we will sum the results of both functions in order to get the total number of miRNA counts.
 
-    import collections
-    import numpy as np
-
     sample_name, fastq_file, mirbaseDB = args
     lines_list = read_gzfile(
         fastq_file
@@ -880,7 +836,6 @@ def get_mirna_counts(args) -> dict[str, dict[str, any]]:
     # We putput the sequences that are not in mirbase into a new file.
     no_mirna_seqs = [gzip_cont[i] for i in range(len(gzip_cont)) if i in no_mirna_seqs]
     outfile = f"02_trim/{sample_name}_trimmed_no_mirna.fastq.gz"
-    import gzip
 
     gzip_cont = "\n".join(["\n".join(seq) for seq in no_mirna_seqs])
     with gzip.open(outfile, "wb") as f:
@@ -912,10 +867,7 @@ def mirbase_sequence_assign(
     if processes == 0:
         processes = len(sample_dict)
 
-    import multiprocessing
-    import collections
-
-    with multiprocessing.Pool(processes) as pool:
+    with Pool(processes) as pool:
         sample_files = pool.map(
             get_mirna_counts,
             [
@@ -958,7 +910,6 @@ def run_aligning(args) -> dict[str, str]:
     # After making a first direct counting using the get_mirna_counts functions in the previous step we have reduced the number of miRNAs that need to be quantify based on their mapping quality.
     # For that we use featureCounts, which requires the sample to be aligned against the reference genome.
     # Because we have previously assign a significant portion of the reads, it reduces the computing time expend on the mapping step.
-    import subprocess
 
     sample_name, fastq_file, index, num_threads, run = args
 
@@ -972,12 +923,12 @@ def run_aligning(args) -> dict[str, str]:
     outDedupLog = f"00_log/{sample_name}.flagstats"
     if run:
         # bowtie -f -n $mismatches_seed -e 80 -l 18 -a -m $mapping_loc --best --strata $file_genome_latest $file_reads_latest $dir/mappings.bwt\n\n";
-        subprocess.run(
+        bash(
             f"bowtie -p {num_threads} -n 0 -l 18 --best --nomaqround -e 70 -k 1 -S {index} {fastq_file} 2>{logBowtie} | samtools view --threads {num_threads} -bS - | samtools sort --threads {num_threads} -o {outBam}",
             shell=True,
         )
-        subprocess.run(f"samtools index {outBam}", shell=True)
-        subprocess.run(f"samtools flagstat {outBam} >{outDedupLog}", shell=True)
+        bash(f"samtools index {outBam}", shell=True)
+        bash(f"samtools flagstat {outBam} >{outDedupLog}", shell=True)
     return {sample_name: outBam}
 
 
@@ -998,12 +949,7 @@ def align_samples(sample_dict, reference, run, processes=4) -> dict[str, str]:
     if processes == 0:
         processes = len(sample_dict)
 
-    import multiprocessing
-    import collections
-
-    num_threads = multiprocessing.cpu_count()
-
-    with multiprocessing.Pool(processes) as pool:
+    with Pool(processes) as pool:
         sample_dict = pool.map(
             run_aligning,
             [
@@ -1075,9 +1021,7 @@ def quality_mapping_samples(sample_dict, mirna_counts, run, processes=4) -> None
     if processes == 0:
         processes = len(sample_dict)
 
-    import multiprocessing
-
-    with multiprocessing.Pool(processes) as pool:
+    with Pool(processes) as pool:
         pool.map(
             get_map_quality,
             [
@@ -1098,12 +1042,10 @@ def run_featurecount(args) -> dict[any, str]:
         dict: A dictionary containing the sample_name as the key and the output file name as the value.
     """
 
-    import subprocess
-
     sample_name, bam_file, gff_file, biotype, num_threads, run = args
     out_name = f"05_counts/{sample_name}_{biotype}.counts.txt"
     if run:
-        subprocess.run(
+        bash(
             f"featureCounts -T {num_threads} -t {biotype} -g Name -s 1 -O -a {gff_file} -o {out_name} {bam_file}",
             shell=True,
         )
@@ -1130,12 +1072,9 @@ def quantify_biotype(
     if processes == 0:
         processes = len(sample_dict)
 
-    import multiprocessing
-    import collections
-
     num_trheads = multiprocessing.cpu_count()
 
-    with multiprocessing.Pool(processes) as pool:
+    with Pool(processes) as pool:
         sample_dict = pool.map(
             run_featurecount,
             [
@@ -1201,9 +1140,7 @@ def quantify_samples(sample_dict, mirna_counts, run, processes=4) -> None:
     if processes == 0:
         processes = len(sample_dict)
 
-    import multiprocessing
-
-    with multiprocessing.Pool(processes) as pool:
+    with Pool(processes) as pool:
         pool.map(
             quantify_mirnas,
             [
@@ -1283,14 +1220,14 @@ def concat_mirna(args) -> dict[any, str]:
         counts = {key: counts[key] for key in counts if counts[key] > 0}
 
     # Writes the combined counts to a file.
-    with open(f"04_counts/{sample_name}_miRNA_concat.txt", "w") as f:
+    with open(f"05_counts/{sample_name}_miRNA_concat.txt", "w") as f:
         f.write("miRNA\tcounts\n")
         for mirna in read_count:
             f.write(f"{mirna}\t{read_count[mirna]}\n")
 
     # Updates the sample_dict.
     # The file path is used in the next step to assign the files to the samples.
-    return {sample_name: f"04_counts/{sample_name}_miRNA_concat.txt"}
+    return {sample_name: f"05_counts/{sample_name}_miRNA_concat.txt"}
 
 
 def concat_mirna_samples(
@@ -1313,10 +1250,7 @@ def concat_mirna_samples(
     if processes == 0:
         processes = len(sample_dict)
 
-    import multiprocessing
-    import collections
-
-    with multiprocessing.Pool(processes) as pool:
+    with Pool(processes) as pool:
         sample_dict = pool.map(
             concat_mirna,
             [
@@ -1334,7 +1268,7 @@ def concat_mirna_samples(
     return sample_dict
 
 
-def merge_count_files(suffix, run, folder_path="04_counts/") -> None:
+def merge_count_files(suffix, run, folder_path="05_counts/") -> None:
     """
     Merge count files with the given suffix and store the result in a new TSV file.
     This function is intended to be used with the "1_6_merge_count_files.py" script.
@@ -1343,16 +1277,13 @@ def merge_count_files(suffix, run, folder_path="04_counts/") -> None:
     Args:
         suffix (str): The file suffix to filter count files.
         run (str): The run number.
-        folder_path (str, optional): The folder path where the count files are stored. Defaults to "04_counts/".
+        folder_path (str, optional): The folder path where the count files are stored. Defaults to "05_counts/".
 
     Returns:
         None
     """
 
     if run:
-        import os
-        import pandas as pd
-        import re
 
         # Get a list of all count files in the directory
         count_files = sorted(
@@ -1386,28 +1317,25 @@ def merge_count_files(suffix, run, folder_path="04_counts/") -> None:
                 .astype(int)
             )
 
-        # Write the merged data to a new TSV file
+        # Write the merged data to a new CSV file
         merged_data.to_csv(
             os.path.join(folder_path, "count_matrix.csv"), sep="\t", index=False
         )
 
 
-def create_colData(groups, suffix, read_type, run, folder_path="04_counts/") -> None:
+def create_colData(groups, suffix, read_type, run, folder_path="05_counts/") -> None:
     """
     Create colData file for DESeq2 based on the given groups, suffix, and read_type, and store it in a TSV file in the specified folder_path.
     Parameters:
     - groups: list of groups to match in the file names. They are used to recognise the sample group.
     - suffix: file suffix to match and remove thereafter.
     - read_type: single-read or pair-end.
-    - folder_path: path of the folder where the files and TSV file will be stored (default is "04_counts/")
+    - folder_path: path of the folder where the files and TSV file will be stored (default is "05_counts/")
     Returns:
     - None
     """
 
     if run:
-
-        import os
-        import re
 
         # Get all files in the folder
         files = sorted(

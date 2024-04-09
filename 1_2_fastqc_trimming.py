@@ -74,6 +74,8 @@ else:
     eval_fastq_files(sample_dict, "FastQC/Trim", "None", run, processes)
     get_stats_fastq_files(sample_dict, run, processes)
 
+
+
 # If we want to operate over files stored in different folders, it is necessary to run this script on each folder separately.
 # The append option allows us to append the sample dict of the new samples to the previous one.
 if append:
