@@ -350,7 +350,7 @@ def eval_fastq_files(
         )
 
     # Run multiqc.
-    bash(f"multiqc {output} --outdir {output}", shell=True)
+    bash(f"multiqc {output} --outdir {output} --force", shell=True)
 
 
 def remove_umi_delete_adapter(fastq_file: str, adapter: str, outfile: str) -> int:
