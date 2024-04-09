@@ -1,8 +1,8 @@
 from typing import Generator, Literal
 from multiprocessing import Pool, cpu_count
+from subprocess import run as bash # Avoids namespace conflicts.
 import collections
 import shutil
-from subprocess import run as bash
 import os
 import glob
 import tqdm
@@ -13,7 +13,6 @@ import pandas as pd
 import re
 
 num_threads = cpu_count()
-
 
 def detect_paired_single(sampleName, listFiles) -> Literal["paired", "single"]:
     """
