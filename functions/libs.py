@@ -22,6 +22,7 @@ num_threads = cpu_count()
 
 #### FUNCTIONS ####
 
+
 def detect_paired_single(
     sampleName: str, listFiles: list
 ) -> Literal["paired", "single"]:
@@ -272,14 +273,13 @@ def eval_fastq_file(args: tuple) -> None:
     """
 
     # Unpack the arguments. The first argument is the sample path, the second is the output directory, the third is the adapter, the fourth is the number of threads, and the fifth is the run flag. This allows to accept a tuple as input, making the function compatible with multiprocessing.
-    sample_path, output, adapter, threads, run = args
+    sample_name, sample_path, output, adapter, threads, run = args
 
     if run:
         # Run fastqc.
         bash(f"fastqc {sample_path} -o {output} -t {threads}", shell=True)
-        # Get the sample name.
+        # Get the filename (! filename != sample_name).
         filename = os.path.basename(sample_path)
-        sample_name = filename.split(".")[0]
         # Create the path for the log file.
         log_file = f"00_log/{sample_name}.log"
 
@@ -343,7 +343,7 @@ def eval_fastq_files(
             eval_fastq_file,
             [
                 # Creates a tuple for each sample to be used as input for the eval_fastq_file function.
-                (sample_dict[sample_name], output, adapter, threads, run)
+                (sample_name, sample_dict[sample_name], output, adapter, threads, run)
                 for sample_name in sample_dict
             ],
         )
