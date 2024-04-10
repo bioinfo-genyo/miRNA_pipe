@@ -1411,16 +1411,18 @@ def concat_mirna_samples(
 
 
 def merge_count_files(
-    suffix: str, folder_path: str = "05_counts/", run: bool = False
+    suffix: str = None,
+    folder_path: str = "05_counts/",
+    sample_dict: dict = None,
+    run: bool = False,
 ) -> None:
     """
-    Merge count files with the given suffix and store the result in a new TSV file.
-    This function is intended to be used with the "1_6_merge_count_files.py" script.
-    It gives the count matrix as ouput.
+    Merges concat count files with the given suffix and store the result in a new TSV file. If a sample_dict is provided (a dictionary containing sample names as keys and sample files paths as values), the concat count files will be merged using the sample_dict. It gives the count matrix as ouput.
 
     Args:
-        suffix (str): The file suffix to filter count files.
+        suffix (str, optional): The file suffix to filter count files.
         folder_path (str, optional): The folder path where the count files are stored. Defaults to "05_counts/".
+        sample_dict (dict, optional): A dictionary containing sample names as keys and sample files paths as values.
         run (bool, optional): Whether to run the evaluation. Defaults to False.
 
     Returns:
@@ -1429,25 +1431,32 @@ def merge_count_files(
 
     if run:
 
-        # Get a list of all count files in the directory
-        count_files = sorted(
-            [file for file in os.listdir(folder_path) if file.endswith(suffix)]
-        )
+        if not sample_dict:
+            # Get a list of all count files in the directory
+            sample_dict = {
+                # Remove the suffix from the file name : folder_path + file name to create the full path.
+                file.replace(suffix, ""): os.path.join(folder_path, file)
+                # List the folder path.
+                for file in os.listdir(folder_path)
+                # Add only files with the suffix.
+                if file.endswith(suffix)
+            }
 
         # Initialize an empty DataFrame to store the merged data
         merged_data = pd.DataFrame(columns=["miRNA"])
 
-        # Loop through each count file
-        for file in count_files:
-            # Read the count file into a DataFrame
-            df = pd.read_csv(os.path.join(folder_path, file), delimiter="\t")
+        # Loop through each count file.
+        # Sort the sample names previously.
+        for sample_name in sorted(sample_dict):
 
-            # Extract the filename (excluding the file extension) to use as column header
-            filename = re.sub(rf"{suffix}", "", file)
-            filename = filename.replace("-", "_")
+            # Read the count file into a DataFrame
+            df = pd.read_csv(sample_dict[sample_name], delimiter="\t")
+
+            # Replace "-" with "_" for R compatibility.
+            sample_name = sample_name.replace("-", "_")
 
             # Rename the columns, excluding the first column (miRNA)
-            df.columns = ["miRNA"] + [filename for col in df.columns[1:]]
+            df.columns = ["miRNA"] + [sample_name for col in df.columns[1:]]
 
             # Merge the DataFrame with the merged_data DataFrame, using the miRNA column as the key
             merged_data = pd.merge(merged_data, df, on="miRNA", how="outer")
@@ -1469,19 +1478,21 @@ def merge_count_files(
 
 def create_colData(
     groups: str,
-    suffix: str,
     read_type: str,
+    suffix: str = None,
     folder_path: str = "05_counts/",
+    sample_dict: dict = None,
     run: bool = False,
 ) -> None:
     """
-    Create colData file for DESeq2 based on the given groups, suffix, and read_type, and store it in a TSV file in the specified folder_path.
+    Creates a colData file for DESeq2 and store it in a TSV file in the specified folder_path. To load the sample paths, a sample_dict can be provided where sample names are keys and sample files paths are values. If not, a suffix must be provided to filter the count files in the specified folder_path.
 
     Args:
         groups (str): A comma-separated string including the codes in the file names identifying the experiment groups.
-        suffix (str): The file suffix to filter count files.
+        suffix (str, None): The file suffix to filter count files.
         read_type (str): The type of sequencing, either single-read or pair-end.
         folder_path (str, optional): The folder path where the colData file will be stored. Defaults to "05_counts/".
+        sample_dict (dict, optional): A dictionary containing sample names as keys and sample files paths as values.
         run (bool, optional): Whether to run the evaluation. Defaults to False.
 
     Returns:
@@ -1490,10 +1501,16 @@ def create_colData(
 
     if run:
 
-        # Get all files in the folder
-        files = sorted(
-            [file for file in os.listdir(folder_path) if file.endswith(suffix)]
-        )
+        if not sample_dict:
+            # Get a list of all count files in the directory
+            sample_dict = {
+                # Remove the suffix from the file name : folder_path + file name to create the full path.
+                file.replace(suffix, ""): os.path.join(folder_path, file)
+                # List the folder path.
+                for file in os.listdir(folder_path)
+                # Add only files with the suffix.
+                if file.endswith(suffix)
+            }
 
         # Create a list to store the data
         data = [["sample", "group", "type"]]
@@ -1501,24 +1518,23 @@ def create_colData(
         # Define the regular expression pattern
         pattern = rf".*({'|'.join(groups)}).*"
 
-        # Loop through each file
-        for file in files:
-            # Match the file name against the pattern
-            match = re.match(pattern, file)
+        # Loop through each file.
+        # Sort the sample names previously.
+        for sample_name in sorted(sample_dict):
+            # Match the sample name against the pattern
+            match = re.match(pattern, sample_name)
 
-            # If the file name matches the pattern
+            # If the sample name matches the pattern
             if match:
-                # Extract the filename (excluding the file extension) to use as column header
-                filename = re.sub(rf"{suffix}", "", file)
-                filename = filename.replace("-", "_")
+                sample_name = sample_name.replace("-", "_")
 
                 # Get the group name:
                 group = match.group(1)
 
                 # Add the data to the list
-                data.append([filename, group, read_type])
+                data.append([sample_name, group, read_type])
 
-        # Create the TSV file
+        # Create the CSV file
         with open(f"{folder_path}/colData.csv", "w") as f:
             for row in data:
                 f.write(f"{row[0]}\t{row[1]}\t{row[2]}\n")

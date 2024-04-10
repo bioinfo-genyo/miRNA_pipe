@@ -12,12 +12,13 @@ This script parsers the 1_5_bam_to_counts.py output files and creates the input 
 
 import argparse
 from functions.libs import merge_count_files, create_colData, mkdir
+import json
 
 # Gets the command line arguments with argparse.
 parser = argparse.ArgumentParser()
-parser.add_argument("-S", "--suffix")
-parser.add_argument("-G", "--groups")
-parser.add_argument("-T", "--read_type")
+parser.add_argument("-S", "--suffix", type=str, default=None)
+parser.add_argument("-G", "--groups", type=str)
+parser.add_argument("-T", "--read_type", type=str)
 parser.add_argument("-F", "--folder_path", type=str, default="05_counts/")
 parser.add_argument("-D", "--colData", action="store_true")
 parser.add_argument("-R", "--run", type=bool, default=False)
@@ -36,13 +37,16 @@ suffix, groups, read_type, folder_path, colData, run = (
 # groups should be input as a comma-separated string.
 groups = tuple(map(str, groups.split(",")))
 
+# Loads the sample dictionary and the paths to concat files.
+with open("00_log/1_5_concat.json", "r") as jsonfile:
+    sample_dict = json.load(jsonfile)
+
 # The number indicates the script that has generated the file (except for 00_log).
 mkdir("06_output/")
 
 # Merges all the sample counts to create the count matrix.
-merge_count_files(suffix, folder_path, run)
+merge_count_files(suffix, folder_path, sample_dict, run)
 
 # Creates the colData file on request.
 if colData:
-
-    create_colData(groups, suffix, read_type, folder_path, run)
+    create_colData(groups, read_type, suffix, folder_path, sample_dict, run)

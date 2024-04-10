@@ -77,3 +77,6 @@ for biotype in gtf_files:
         sample_files_bio = concat_mirna_samples(
             sample_files_bio, mirna_counts, mirbaseDB, use_mirbase, processes
         )
+# Writes out the path to the concat files as a json file in order to be exchangeable with the other scripts.
+with open("00_log/1_5_concat.json", "w") as jsonfile:
+    json.dump(sample_files_bio, jsonfile, indent=4)
