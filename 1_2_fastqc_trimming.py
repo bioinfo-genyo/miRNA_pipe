@@ -75,7 +75,7 @@ if slow:
 else:
     eval_fastq_files(sample_dict, "FastQC/Raw", adapter, threads, processes, run)
     sample_dict = trimming_files(sample_dict, adapter, threads, processes, run)
-    eval_fastq_files(sample_dict, "FastQC/Trim", "None", threads, processes, run)
+    eval_fastq_files(sample_dict, "FastQC/Trim", None, threads, processes, run)
     get_stats_fastq_files(sample_dict, processes, run)
 
 # If we want to operate over files stored in different folders, it is necessary to run this script on each folder separately.

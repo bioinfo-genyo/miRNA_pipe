@@ -315,7 +315,7 @@ def eval_fastq_file(args: tuple) -> None:
 def eval_fastq_files(
     sample_dict: dict,
     output: str,
-    adapter: str,
+    adapter: str = None,
     threads: int = num_threads,
     processes: int = 4,
     run: bool = False,
