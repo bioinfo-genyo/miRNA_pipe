@@ -140,7 +140,7 @@ def mkdir(dir: str) -> None:
         os.mkdir(dir)
 
 
-def list_dir_files(dir: str, pattern: str = "None") -> list[str]:
+def list_dir_files(dir: str, pattern: str = None) -> list[str]:
     """
     Function to list the files of a directory. If pattern is specified, only files matching the pattern will be returned.
     """
