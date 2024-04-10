@@ -22,7 +22,6 @@ num_threads = cpu_count()
 
 #### FUNCTIONS ####
 
-
 def detect_paired_single(
     sampleName: str, listFiles: list
 ) -> Literal["paired", "single"]:
