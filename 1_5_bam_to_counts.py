@@ -62,7 +62,7 @@ gtf_files = prepare_biotypes(reference_folder, gff, tax, biotypes="miRNA")
 ref_file = f"{reference_folder}/mature.fa"
 mirbaseDB = filter_mirbase(kegg, ref_file)
 
-if use_mirbase != "0":
+if use_mirbase:
     download_file(use_mirbase, f"{reference_folder}/miRNA.gff3")
     gtf_files["miRNA"] = f"{reference_folder}/miRNA.gff3"
 

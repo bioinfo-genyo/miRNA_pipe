@@ -1401,8 +1401,8 @@ def concat_mirna_samples(
                     sample_name,
                     sample_dict[sample_name],
                     mirna_counts[sample_name],
-                    use_mirbase,
                     mirbaseDB,
+                    use_mirbase,
                 )
                 for sample_name in sample_dict
             ],
