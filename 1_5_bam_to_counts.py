@@ -2,12 +2,14 @@
 This script is the fifth step of the analysis. We will count the aligned reads to the miRNAs of the given database using featureCounts. After that, the pre-counted reads will be added to the results of featureCounts, obtaining the final count files for each sample.
 
     Args:
-        -R, --ref (str): The genome reference directory where all files will be stored.
-        -T, --tax (str): The taxonomic code to use (9606 for human).
+        -r, --ref (str): The genome reference directory where all files will be stored.
+        -t, --tax (str): The taxonomic code to use (9606 for human).
         -G, --gff (str): The url to the file of the genome annotation gff file (input for featureCounts). 
         -K, --kegg (str): The kegg biotype to filter de miRNA database (hsa for human).
-        -M, --use-mirbase (str): URL to the mirbase database to download it. In this case is also used as a flag. When the species we are analyzing is not in mirBase, left use_mirbase emtpy and the data from the available database will be used
+        -M, --use-mirbase (str): URL to the mirbase database to download it. In this case is also used as a flag. When the species we are analyzing is not in mirBase, left use_mirbase emtpy and the data from the available database will be used-
+        -T, --threads (int): The number of threads to use in applications that allow multithreading. Default is the number of CPU threads.
         -P, --processes (str): The number of cpu threads to use. Default is 4. If 0 is specified, use the number of samples to maximize parallelization.
+        -R, --run (str): Run control variable (True to run).
 """
 
 import argparse
@@ -26,14 +28,14 @@ from multiprocessing import cpu_count
 
 # Gets the command line arguments with argparse.
 parser = argparse.ArgumentParser()
-parser.add_argument("-R", "--ref", type=str)
-parser.add_argument("-X", "--tax", type=str)
+parser.add_argument("-r", "--ref", type=str)
+parser.add_argument("-t", "--tax", type=str)
 parser.add_argument("-G", "--gff", type=str)
 parser.add_argument("-K", "--kegg", type=str)
 parser.add_argument("-M", "--use-mirbase", type=str, default=None)
 parser.add_argument("-T", "--threads", type=int, default=cpu_count())
 parser.add_argument("-P", "--processes", type=int, default=4)
-parser.add_argument("-L", "--run", type=bool, default=False)
+parser.add_argument("-R", "--run", type=bool, default=False)
 args = vars(parser.parse_args())
 
 # Assign the command line arguments to variables.

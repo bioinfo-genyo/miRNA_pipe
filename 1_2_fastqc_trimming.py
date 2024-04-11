@@ -4,19 +4,17 @@ This is the first step of the data pre-processing, delete the adapter and UMIs f
     Args:
         -I, --input_dir (str): Input directory.
         -A, --adapter (str): Adapter sequence to remove. Default is the Illumina universal adapter.
-        -R, --run (str): Run control variable (1 to run).
-        -L, --slow (str): Flag that activates slow mode. It only uses one thread. Use in case the memory use overwhelms the system capabilities.
+        -S, --slow (str): Flag that activates slow mode. It only uses one thread. Use in case the memory use exceeds the system capabilities.
         -T, --threads (int): The number of threads to use in applications that allow multithreading. Default is the number of CPU threads.
         -P, --processes (str): The number of cpu threads to use. Default is 4. If 0 is specified, use the number of samples to maximize parallelization.
         -a, --append_sample_dict (str): If specified, appends an existing sample dictionary to the new one.
+        -R, --run (str): Run control variable (True to run).
 """
 
 import argparse
 import json
 from functions.libs import (
     create_sample_dict,
-    list_dir_files,
-    get_sample_name,
     mkdir,
     eval_fastq_files,
     trimming_files,
@@ -32,7 +30,7 @@ parser.add_argument("-A", "--adapter", type=str, default="AGATCGGAAGAG")
 parser.add_argument("-T", "--threads", type=int, default=cpu_count())
 parser.add_argument("-P", "--processes", type=int, default=4)
 parser.add_argument(
-    "-L", "--slow", action="store_true"
+    "-S", "--slow", action="store_true"
 )  # Much slower processing, but less memory-intensive.
 parser.add_argument("-a", "--append_sample_dict", action="store_true")
 parser.add_argument("-R", "--run", type=bool, default=False)

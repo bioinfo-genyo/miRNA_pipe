@@ -1,10 +1,10 @@
 """ 
-This is the third step of the analysis, mapping the reads to the reference genome. We also do a initial miRNA assignment in order to filter out the reads that exactly match the miRNAs of the given database. That way those counts are directly taken into account and reduces computing time expend on the mapping step.
+This is the third step of the analysis, mapping the reads to the reference genome. We also do a initial miRNA assignment in order to filter out the reads that exactly match the miRNAs of the given database. That way those counts are directly taken into account and reduces computing time expended on the mapping step.
 
     Args:
-        -R, --ref (str): The reference directory where all files will be stored.
+        -r, --ref (str): The reference directory where all files will be stored.
         -K, --kegg (str): The kegg biotype to filter de miRNA database (hsa for human).
-        -L, --run (str): Run control variable (1 to run).
+        -R, --run (str): Run control variable (True to run).
         -T, --threads (int): The number of threads to use in applications that allow multithreading. Default is the number of CPU threads.
         -P, --processes (str): The number of cpu threads to use. Default is 4. If 0 is specified, use the number of samples to maximize parallelization.
 """
@@ -24,11 +24,11 @@ from multiprocessing import cpu_count
 
 # Gets the command line arguments with argparse.
 parser = argparse.ArgumentParser()
-parser.add_argument("-R", "--ref", type=str)
+parser.add_argument("-r", "--ref", type=str)
 parser.add_argument("-K", "--kegg", type=str)
 parser.add_argument("-T", "--threads", type=int, default=cpu_count())
 parser.add_argument("-P", "--processes", type=int, default=4)
-parser.add_argument("-L", "--run", type=bool, default=False)
+parser.add_argument("-R", "--run", type=bool, default=False)
 args = vars(parser.parse_args())
 
 # Assign the command line arguments to variables.

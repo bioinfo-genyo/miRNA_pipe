@@ -13,8 +13,8 @@ from functions.libs import list_dir_files, mkdir, copy_files
 
 # Gets the command line arguments with argparse.
 parser = argparse.ArgumentParser()
-parser.add_argument("-I", "--final-dir", type=str)
-parser.add_argument("-A", "--rem-files", type=str)
+parser.add_argument("-D", "--final-dir", type=str)
+parser.add_argument("-X", "--rem-files", type=str)
 parser.add_argument("-P", "--project", type=str)
 parser.add_argument("-R", "--run", type=bool, default=False)
 args = vars(parser.parse_args())

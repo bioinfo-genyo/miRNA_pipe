@@ -2,10 +2,10 @@
 This is the first step of file preparation, to concatenate all the fastq files for each sample is we count with lane_splitted data.
 
     Args:
-        -D, --project (str): The name of the project.
+        -p, --project (str): The name of the project.
         -X, --rem_samples (str): A comma-separated list of samples to be removed.
         -R, --run (str): A run control variable (1 to run).
-        -P, --processes (str): The number of cpu threads to use. If no number of threads is specified, use the number of samples to maximize parallelization.
+        -P, --processes (str): The number of cpu threads to use. If 0 is specified, use the number of samples to maximize parallelization.
 """
 
 import argparse
@@ -16,10 +16,10 @@ from functions.libs import concatenate_files
 
 # Gets the command line arguments with argparse.
 parser = argparse.ArgumentParser()
-parser.add_argument("-D", "--project", type=str)
+parser.add_argument("-p", "--project", type=str)
 parser.add_argument("-X", "--rem_samples")
 parser.add_argument("-R", "--run", type=str, default="0")
-parser.add_argument("-P", "--processes", type=str, default="sample")
+parser.add_argument("-P", "--processes", type=int, default=4)
 args = vars(parser.parse_args())
 
 # Assign the command line arguments to variables.
@@ -55,7 +55,7 @@ sampleNames = [
 ]
 
 # Concatenates the files using multiprocessing.
-if processes == "sample":
+if processes == 0:
     processes = len(sampleNames)
 
 with multiprocessing.Pool(processes) as pool:

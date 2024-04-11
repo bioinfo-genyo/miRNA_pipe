@@ -52,7 +52,7 @@ def shutil_python(output_file: str, input_files: list[str]) -> None:
     Concatenates the data from multiple input files and writes the result to the specified output file.
     Args:
         output_file (str): The path to the output file.
-        input_files (List[str]): The list of paths to the input files.
+        input_files (list[str]): The list of paths to the input files.
     Returns:
         None
     """
@@ -198,12 +198,12 @@ def create_sample_dict(
     folder_path: str = ".", pattern: str = "", extension: str = ""
 ) -> dict[str, str]:
     """
-    Function to create a sample dictionary.
+    Function to create a sample dictionary, where the sample names are the keys and the sample files paths are the values. If a pattern is specified, only files matching the pattern will be returned.
 
     Args:
         folder_path (str, optional): The path to the folder containing the fastq files. Defaults to current directory.
-        pattern (str, optional): The pattern to filter the fastq files and trim the sample names. If no pattern is specified, the sample names won't be filtered and will be extracted from the file name.
-        extension (str, optional): The extension of the files. If no extension is specified, all files will be considered.
+        pattern (str, optional): The pattern to filter the fastq files and trim the sample names. If no pattern is specified, the sample names won't be filtered and will be set as the file name without the extension (if provided).
+        extension (str, optional): The extension of the files is used to filter the listed files in the directory. If no extension is specified, all files will be considered only by the pattern (if provided).
 
     Returns:
         dict: A dictionary containing sample names as keys and sample files paths as values.
@@ -321,7 +321,7 @@ def eval_fastq_file(args: tuple) -> None:
             sample_path (str): The path to the fastq file.
             output (str): The output directory for the results.
             adapter (str): The adapter to be used.
-            threads (int): The number of threads to be used.
+            threads (int): The number of threads to be used in fastqc.
             run (bool): Whether to run the evaluation.
 
     Returns:
@@ -334,7 +334,7 @@ def eval_fastq_file(args: tuple) -> None:
     if run:
         # Run fastqc.
         bash(f"fastqc {sample_path} -o {output} -t {threads}", shell=True)
-        # Get the filename (! filename != sample_name).
+        # Get the filename (WARNING: filename != sample_name).
         filename = os.path.basename(sample_path)
         # Create the path for the log file.
         log_file = f"00_log/{sample_name}.log"
@@ -342,7 +342,7 @@ def eval_fastq_file(args: tuple) -> None:
         # If  the adapter is included, that means the fastq file is raw.
         if adapter:
             mode = "w"
-            text = "############ RAW READS ##############\n\n"
+            text = "########## RAW READS ##########\n\n"
             write_log(log_file, text, mode)
             mode = "a"
             # Creates a list of lines from the fastq file. The file is contained in a generator that will only read the lines when requested.
@@ -356,7 +356,7 @@ def eval_fastq_file(args: tuple) -> None:
         # If no adapter is specified, the fastq file is trimmed.
         else:
             mode = "a"
-            text = "############ TRIM READS ##############\n\n"
+            text = "########## TRIM READS ##########\n\n"
             write_log(log_file, text, mode)
             mode = "a"
             # Creates a list of lines from the fastq file. The file is contained in a generator that will only read the lines when requested.
@@ -383,9 +383,9 @@ def eval_fastq_files(
         sample_dict (dict): A dictionary containing sample information.
         output (str): The output directory for the evaluated files.
         adapter (str): The adapter to be used for evaluation.
-        threads (int, optional): The number of threads to be used. Defaults to total number of CPU threads.
+        threads (int, optional): The number of threads to be used in fastqc. Defaults to total number of CPU threads.
         run (bool, optional): Whether to run the evaluation. Defaults to False.
-        processes (str, optional): The number of processes to be used for multiprocessing. Defaults to the number of samples to maximize parallelization.
+        processes (str, optional): The number of processes to be used for multiprocessing. Defaults to 4.
 
     Returns:
         None: This function does not return anything.
@@ -453,6 +453,13 @@ def remove_umi_delete_adapter(fastq_file: str, adapter: str, outfile: str) -> in
     # Counts repeated reads. The unique_dup list contains the unique set of duplicated reads to take into account the ones that have been processed.
     unique_dup = list(set(duplicated_lines))
     duplicated_lines = len(duplicated_lines) + len(unique_dup)
+
+    # Control for incorrect adapters (generates empty file).
+    if not filtered_lines:
+        raise Exception(
+            "No reads after adapter and UMI removal. Please, check adapter sequence"
+        )
+
     # Creates a new gzip file with the processed un-duplicated reads.
     gzip_cont = "\n".join(["\n".join(seq) for seq in filtered_lines])
     with gzip.open(outfile, "wb") as f:
@@ -469,7 +476,7 @@ def run_trimming(args) -> dict[str, str]:
             sample_name (str): The sample name.
             fastq_file (str): The fastq file path.
             adapter (str): The adapter sequence for trimming.
-            threads (int): The number of threads to use for trimming.
+            threads (int): The number of threads to use in cutadapt.
             run (bool): Whether to run the trimming.
 
     Returns:
@@ -490,7 +497,7 @@ def run_trimming(args) -> dict[str, str]:
 
         # Updates the log for that sample.
         mode = "a"
-        text = "############ DUPS READS ##############\n\n"
+        text = "########## DUPS READS ##########\n\n"
         log_file = f"00_log/{sample_name}.log"
         write_log(log_file, text, mode)
         mode = "a"
@@ -506,6 +513,7 @@ def run_trimming(args) -> dict[str, str]:
 
     # Remove the intermediate files
     rm_file(outFileUMI)
+
     # Returns a dict containing the sample name as key and the trimmed fastq file as value.
     # This would be the basic return value for the functions in order to build the sample dict.
     # This dict relates the sample names (the identifier the functions work with) with the path of the file in order to be find by the function calls.
@@ -527,7 +535,7 @@ def trimming_files(
         sample_dict (dict): A dictionary containing the samples to be trimmed.
         adapter (str): The adapter used for trimming.
         run (int): The run number.
-        threads (int): The number of threads to use for trimming. Defaults to total number of CPU threads.
+        threads (int): The number of threads to use in cutadapt. Defaults to total number of CPU threads.
         processes (str, optional): The number of processes to use for multiprocessing. Defaults to "sample".
         run (bool, optional): Whether to run the trimming. Defaults to False.
 
@@ -644,7 +652,7 @@ def get_fastq_stats(args: tuple) -> None:
         logfile = f"00_log/{sample_name}.log"
         mode = "a"
         ### quality stats
-        text = "############ QUALITY READS ##############\n\n"
+        text = "########## QUALITY READS ##########\n\n"
         write_log(logfile, text, mode)
         text = "bp\tmean\n"
         write_log(logfile, text, mode)
@@ -653,7 +661,7 @@ def get_fastq_stats(args: tuple) -> None:
             write_log(logfile, text, mode)
 
         ### lengths stats
-        text = "\n############ LEN READS ##############\n\n"
+        text = "\n########## LEN READS ##########\n\n"
         write_log(logfile, text, mode)
         text = "len\tdensity\n"
         write_log(logfile, text, mode)
@@ -700,6 +708,7 @@ def prepare_ref(fasta: str, ref: str, threads: int = num_threads) -> None:
     Args:
         fasta (str): The path to the fasta file.
         ref (str): The reference directory.
+        threads (int, optional): The number of threads to use in bowtie-build. Defaults to total number of CPU threads.
 
     Returns:
         None
@@ -886,7 +895,7 @@ def filter_mirbase(kegg: str, ref_file: str) -> dict[str, list[str]]:
         ref_file (str): The reference file to be filtered.
 
     Returns:
-        dict: A dictionary containing the filtered file contents with modifications.
+        dict: A dictionary containing the filtered file contents with modifications. Replaces the U with T in the miRNA sequence and saves it in a new dictionary where the keys are the sequences and the values are the identifiers.
     """
     # Read the contents of the reference file (the whole miRNA base database).
     with open(ref_file, "r") as r:
@@ -955,6 +964,7 @@ def get_mirna_counts(args: tuple) -> dict[str, dict[str, int | str]]:
         else:
             mirna_index[seq] = [mirna[0]]
 
+    # Filters out reads that do not contain a miRNA sequence.
     no_mirna_seqs = set()
 
     # Generates an empty dict ready to storage lists.
@@ -1052,7 +1062,7 @@ def run_aligning(args: tuple) -> dict[str, str]:
             sample_name (str): The sample name.
             fastq_file (str): The fastq file path.
             index (str): The index file path.
-            threads (int): The number of threads to use for alignment.
+            threads (int): The number of threads to use in bowtie.
             run (bool): Whether to run the alignment.
 
     Returns:
@@ -1098,6 +1108,7 @@ def align_samples(
     Args:
         sample_dict (dict): A dictionary containing sample names as keys and sample files paths as values.
         reference (str): The reference directory.
+        threads (int, optional): The number of threads to use in bowtie. Defaults to total number of CPU threads.
         processes (str, optional): The number of processes for alignment. If 0 is specified, use the number of samples to maximize parallelization.
         run (bool, optional): Whether to run the alignment. Defaults to False.
 
@@ -1208,7 +1219,7 @@ def run_featurecount(args: tuple) -> dict[any, str]:
             bam_file (str): The bam file path.
             gff_file (str): The gff file path.
             biotype (str): The biotype to count.
-            threads (int): The number of threads to use.
+            threads (int): The number of threads to use in featureCounts.
     """
 
     # Unpack the arguments. The first argument is the sample name, the second is the bam file path, the third is the gff file path, the fourth is the biotype to count, the fifth is the number of threads to use, and the sixth the run flag .This allows to accept a tuple as input, making the function compatible with multiprocessing.
@@ -1238,9 +1249,9 @@ def quantify_biotype(
         sample_dict (dict): A dictionary containing sample names as keys and sample data as values.
         gff_file (str): The gff file path.
         biotype (str): The biotype to count.
-        threads (int, optional): The number of threads to use. Defaults to the total number of CPU threads.
+        threads (int, optional): The number of threads to use in featureCounts. Defaults to the total number of CPU threads.
+        processes (int, optional): The number of processes to use for multiprocessing. Defaults to 4.
         run (bool, optional): Whether to run the evaluation. Defaults to False.
-        processes (int, optional): The number of processes to use for multiprocessing. Defaults to the number of samples to maximize parallelization.
 
     Returns:
         A dictionary containing the quantified biotypes for each sample.
@@ -1485,44 +1496,39 @@ def merge_count_files(
         None
     """
 
-    if run:
+    if not sample_dict:
+        # Get a list of all count files in the directory
+        sample_dict = create_sample_dict(folder_path, pattern, "")
 
-        if not sample_dict:
-            # Get a list of all count files in the directory
-            sample_dict = create_sample_dict(folder_path, pattern, "")
+    # Initialize an empty DataFrame to store the merged data
+    merged_data = pd.DataFrame(columns=["miRNA"])
 
-        # Initialize an empty DataFrame to store the merged data
-        merged_data = pd.DataFrame(columns=["miRNA"])
+    # Loop through each count file.
+    # Sort the sample names previously.
+    for sample_name in sorted(sample_dict):
 
-        # Loop through each count file.
-        # Sort the sample names previously.
-        for sample_name in sorted(sample_dict):
+        # Read the count file into a DataFrame
+        df = pd.read_csv(sample_dict[sample_name], delimiter="\t")
 
-            # Read the count file into a DataFrame
-            df = pd.read_csv(sample_dict[sample_name], delimiter="\t")
+        # Replace "-" with "_" for R compatibility.
+        sample_name = sample_name.replace("-", "_")
 
-            # Replace "-" with "_" for R compatibility.
-            sample_name = sample_name.replace("-", "_")
+        # Rename the columns, excluding the first column (miRNA)
+        df.columns = ["miRNA"] + [sample_name for col in df.columns[1:]]
 
-            # Rename the columns, excluding the first column (miRNA)
-            df.columns = ["miRNA"] + [sample_name for col in df.columns[1:]]
+        # Merge the DataFrame with the merged_data DataFrame, using the miRNA column as the key
+        merged_data = pd.merge(merged_data, df, on="miRNA", how="outer")
 
-            # Merge the DataFrame with the merged_data DataFrame, using the miRNA column as the key
-            merged_data = pd.merge(merged_data, df, on="miRNA", how="outer")
-
-        # Convert all non-integer values to NaN and then replace NaN with 0
-        for col in merged_data.columns[1:]:
-            merged_data[col] = (
-                merged_data[col]
-                .apply(pd.to_numeric, errors="coerce")
-                .fillna(0)
-                .astype(int)
-            )
-
-        # Write the merged data to a new CSV file
-        merged_data.to_csv(
-            os.path.join(folder_path, "count_matrix.csv"), sep="\t", index=False
+    # Convert all non-integer values to NaN and then replace NaN with 0
+    for col in merged_data.columns[1:]:
+        merged_data[col] = (
+            merged_data[col].apply(pd.to_numeric, errors="coerce").fillna(0).astype(int)
         )
+
+    # Write the merged data to a new CSV file
+    merged_data.to_csv(
+        os.path.join(folder_path, "count_matrix.csv"), sep="\t", index=False
+    )
 
 
 def create_colData(
@@ -1531,7 +1537,6 @@ def create_colData(
     pattern: str = "",
     folder_path: str = ".",
     sample_dict: dict = None,
-    run: bool = False,
 ) -> None:
     """
     Creates a colData file for DESeq2 and store it in a TSV file in the specified folder_path. To load the sample paths, a sample_dict can be provided where sample names are keys and sample files paths are values. If not, a suffix must be provided to filter the count files in the specified folder_path.
@@ -1548,35 +1553,33 @@ def create_colData(
         None
     """
 
-    if run:
+    if not sample_dict:
+        # Get a list of all count files in the directory
+        sample_dict = create_sample_dict(folder_path, pattern, "")
 
-        if not sample_dict:
-            # Get a list of all count files in the directory
-            sample_dict = create_sample_dict(folder_path, pattern, "")
+    # Create a list to store the data
+    data = [["sample", "group", "type"]]
 
-        # Create a list to store the data
-        data = [["sample", "group", "type"]]
+    # Define the regular expression pattern
+    pattern = rf".*({'|'.join(groups)}).*"
 
-        # Define the regular expression pattern
-        pattern = rf".*({'|'.join(groups)}).*"
+    # Loop through each file.
+    # Sort the sample names previously.
+    for sample_name in sorted(sample_dict):
+        # Match the sample name against the pattern
+        match = re.match(pattern, sample_name)
 
-        # Loop through each file.
-        # Sort the sample names previously.
-        for sample_name in sorted(sample_dict):
-            # Match the sample name against the pattern
-            match = re.match(pattern, sample_name)
+        # If the sample name matches the pattern
+        if match:
+            sample_name = sample_name.replace("-", "_")
 
-            # If the sample name matches the pattern
-            if match:
-                sample_name = sample_name.replace("-", "_")
+            # Get the group name:
+            group = match.group(1)
 
-                # Get the group name:
-                group = match.group(1)
+            # Add the data to the list
+            data.append([sample_name, group, read_type])
 
-                # Add the data to the list
-                data.append([sample_name, group, read_type])
-
-        # Create the CSV file
-        with open(f"{folder_path}/colData.csv", "w") as f:
-            for row in data:
-                f.write(f"{row[0]}\t{row[1]}\t{row[2]}\n")
+    # Create the CSV file
+    with open(f"{folder_path}/colData.csv", "w") as f:
+        for row in data:
+            f.write(f"{row[0]}\t{row[1]}\t{row[2]}\n")
