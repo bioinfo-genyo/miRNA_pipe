@@ -14,6 +14,7 @@ This is the first step of the data pre-processing, delete the adapter and UMIs f
 import argparse
 import json
 from functions.libs import (
+    create_sample_dict,
     list_dir_files,
     get_sample_name,
     mkdir,
@@ -51,13 +52,8 @@ input_dir, adapter, slow, append, threads, processes, run = (
 # Build sample dict. Key is sample name, value is fastq file path. This is what we use to localize the appropiate files for each step.
 # When a processing step is performed over the samples, their file name is changed to indicate the process performed.
 # The sample dict is stored as a json file that is updated on each step to keep track of the transformed samples' fastq files.
-filenames = list_dir_files(input_dir, "fastq.gz")
-sample_names = get_sample_name(filenames)
 
-sample_dict = {}
-for sample_name in sample_names:
-    fastq_file_r1 = [x for x in filenames if sample_name in x and "_R1_" in x][0]
-    sample_dict[sample_name] = fastq_file_r1
+sample_dict = create_sample_dict(input_dir, "_R1_", ".fastq.gz")
 
 # Creates necessary directories for the analysis.
 mkdir("FastQC/")

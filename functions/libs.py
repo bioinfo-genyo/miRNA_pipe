@@ -140,16 +140,88 @@ def mkdir(dir: str) -> None:
         os.mkdir(dir)
 
 
-def list_dir_files(dir: str, pattern: str = None) -> list[str]:
+def list_dir_files(dir: str = ".", pattern: str = "") -> list[str]:
     """
-    Function to list the files of a directory. If pattern is specified, only files matching the pattern will be returned.
+    Function to list the files of a directory. If pattern is specified, only files matching the pattern will be returned (generally the extension).
+
+    Args:
+        dir (str, optional): The directory path. Defaults to current directory.
+        pattern (str, optional): The pattern to filter the files. If not specified, all files will be returned.
+
+    Returns:
+        list: A list of files in the directory.
     """
 
-    if not pattern:
-        files = glob.glob(f"{dir}/*")
-    else:
-        files = glob.glob(f"{dir}/*{pattern}*")
+    files = glob.glob(f"{dir}/*{pattern}*")
     return files
+
+
+def get_sample_name(file_name: str | list[str], pattern: str = "") -> str | list[str]:
+    """
+    Returns the sample name of a fastq file. If a list of fastq files is provided, the sample names will be extracted from the file names and returned all together as a list. A pattern could be specified to filter and trim the sample names. If no pattern is specified, the sample name will be extracted from the file name.
+
+    Args:
+        file_name (str | list[str]): The file name of the fastq file or a list of fastq files.
+        pattern (str, optional): The pattern to filter and trim the fastq files. If no pattern is specified, the sample name will be extracted from the file name.
+
+    Returns:
+        list: A list of sample names | str: The sample name.
+    """
+
+    if isinstance(file_name, str):
+        try:
+            return (
+                os.path.basename(file_name).split(pattern)[0]
+                if pattern in file_name
+                else None
+            )
+        except ValueError:
+            return os.path.basename(file_name)
+
+    # If the input is a list of fastq files.
+    else:
+        try:
+            return list(
+                set(
+                    [
+                        os.path.basename(file).split(pattern)[0]
+                        for file in file_name
+                        if pattern in file
+                    ]
+                )
+            )
+        except ValueError:
+            return list(set([os.path.basename(file) for file in file_name]))
+
+
+def create_sample_dict(
+    folder_path: str = ".", pattern: str = "", extension: str = ""
+) -> dict[str, str]:
+    """
+    Function to create a sample dictionary.
+
+    Args:
+        folder_path (str, optional): The path to the folder containing the fastq files. Defaults to current directory.
+        pattern (str, optional): The pattern to filter the fastq files and trim the sample names. If no pattern is specified, the sample names won't be filtered and will be extracted from the file name.
+        extension (str, optional): The extension of the files. If no extension is specified, all files will be considered.
+
+    Returns:
+        dict: A dictionary containing sample names as keys and sample files paths as values.
+    """
+
+    # If no pattern is specified but there is an extension at least trim the extension.
+    pattern = extension if not pattern else pattern
+
+    sample_dict = {
+        # Trim the file name : file_name
+        get_sample_name(file_path, pattern): file_path
+        # List the folder path, filter unique elements and sort the list.
+        for file_path in sorted(list(set(list_dir_files(folder_path, extension))))
+        # Add only files with the suffix.
+        if pattern in file_path
+    }
+
+    return sample_dict
 
 
 def copy_files(src_file: str, dst_file: str) -> None:
@@ -210,22 +282,6 @@ def download_file(url: str, filename: str, force: bool = False) -> None:
                     for chunk in r.iter_content(chunk_size=8192):
                         pb.update(len(chunk))
                         f.write(chunk)
-
-
-def get_sample_name(file_names: list[str]) -> list[str]:
-    """
-    Function to list the sample names of a list of fastq files.
-    """
-
-    return list(
-        set(
-            [
-                os.path.basename(file).split("_R1_")[0]
-                for file in file_names
-                if "_R1_" in file
-            ]
-        )
-    )
 
 
 def read_gzfile(filename: str) -> Generator[bytes | str, any, None]:
@@ -1411,8 +1467,8 @@ def concat_mirna_samples(
 
 
 def merge_count_files(
-    suffix: str = None,
-    folder_path: str = "05_counts/",
+    pattern: str = "",
+    folder_path: str = ".",
     sample_dict: dict = None,
     run: bool = False,
 ) -> None:
@@ -1420,8 +1476,8 @@ def merge_count_files(
     Merges concat count files with the given suffix and store the result in a new TSV file. If a sample_dict is provided (a dictionary containing sample names as keys and sample files paths as values), the concat count files will be merged using the sample_dict. It gives the count matrix as ouput.
 
     Args:
-        suffix (str, optional): The file suffix to filter count files.
-        folder_path (str, optional): The folder path where the count files are stored. Defaults to "05_counts/".
+        pattern (str, optional): A pattern in the file names to filter count files.
+        folder_path (str, optional): The folder path where the count files are stored. Defaults to current directory.
         sample_dict (dict, optional): A dictionary containing sample names as keys and sample files paths as values.
         run (bool, optional): Whether to run the evaluation. Defaults to False.
 
@@ -1433,14 +1489,7 @@ def merge_count_files(
 
         if not sample_dict:
             # Get a list of all count files in the directory
-            sample_dict = {
-                # Remove the suffix from the file name : folder_path + file name to create the full path.
-                file.replace(suffix, ""): os.path.join(folder_path, file)
-                # List the folder path.
-                for file in os.listdir(folder_path)
-                # Add only files with the suffix.
-                if file.endswith(suffix)
-            }
+            sample_dict = create_sample_dict(folder_path, pattern, "")
 
         # Initialize an empty DataFrame to store the merged data
         merged_data = pd.DataFrame(columns=["miRNA"])
@@ -1479,8 +1528,8 @@ def merge_count_files(
 def create_colData(
     groups: str,
     read_type: str,
-    suffix: str = None,
-    folder_path: str = "05_counts/",
+    pattern: str = "",
+    folder_path: str = ".",
     sample_dict: dict = None,
     run: bool = False,
 ) -> None:
@@ -1489,9 +1538,9 @@ def create_colData(
 
     Args:
         groups (str): A comma-separated string including the codes in the file names identifying the experiment groups.
-        suffix (str, None): The file suffix to filter count files.
+        pattern (str, optional): A pattern in the file names to filter count files.
         read_type (str): The type of sequencing, either single-read or pair-end.
-        folder_path (str, optional): The folder path where the colData file will be stored. Defaults to "05_counts/".
+        folder_path (str, optional): The folder path where the colData file will be stored. Defaults to current directory.
         sample_dict (dict, optional): A dictionary containing sample names as keys and sample files paths as values.
         run (bool, optional): Whether to run the evaluation. Defaults to False.
 
@@ -1503,14 +1552,7 @@ def create_colData(
 
         if not sample_dict:
             # Get a list of all count files in the directory
-            sample_dict = {
-                # Remove the suffix from the file name : folder_path + file name to create the full path.
-                file.replace(suffix, ""): os.path.join(folder_path, file)
-                # List the folder path.
-                for file in os.listdir(folder_path)
-                # Add only files with the suffix.
-                if file.endswith(suffix)
-            }
+            sample_dict = create_sample_dict(folder_path, pattern, "")
 
         # Create a list to store the data
         data = [["sample", "group", "type"]]
