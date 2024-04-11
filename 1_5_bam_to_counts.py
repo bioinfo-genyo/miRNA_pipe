@@ -20,6 +20,7 @@ from functions.libs import (
     concat_mirna_samples,
     quantify_biotype,
     quantify_samples,
+    create_sample_dict,
 )
 from multiprocessing import cpu_count
 
@@ -47,10 +48,15 @@ reference_folder, tax, gff, kegg, use_mirbase, threads, processes, run = (
     args["run"],
 )
 
-# Loads the sample dictionary and the paths to count files.
-with open("00_log/1_4_bam.json", "r") as jsonfile:
-    sample_dict = json.load(jsonfile)
+try:
+    # Loads the sample dictionary.
+    with open("00_log/1_4_bam.json", "r") as jsonfile:
+        sample_dict = json.load(jsonfile)
+except FileNotFoundError:
+    # If not file is found, builds the sample dictionary from the 1_4_fastq_to_bam.py output files.
+    sample_dict = create_sample_dict("04_bam/", ".bam")
 
+# Loads the paths to count files.
 with open("00_log/1_4_mirna_counts.json", "r") as jsonfile:
     mirna_counts = json.load(jsonfile)
 

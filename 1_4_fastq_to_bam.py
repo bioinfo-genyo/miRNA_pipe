@@ -18,6 +18,7 @@ from functions.libs import (
     mirbase_sequence_assign,
     align_samples,
     quality_mapping_samples,
+    create_sample_dict,
 )
 from multiprocessing import cpu_count
 
@@ -43,9 +44,13 @@ reference_folder, kegg, threads, processes, run = (
 with open("00_log/1_3_ref.json", "r") as jsonfile:
     bowtie_reference = json.load(jsonfile)
 
-# Loads sample dict.
-with open("00_log/1_2_fastq.json", "r") as jsonfile:
-    sample_dict = json.load(jsonfile)
+try:
+    # Loads the sample dictionary.
+    with open("00_log/1_2_fastq.json", "r") as jsonfile:
+        sample_dict = json.load(jsonfile)
+except FileNotFoundError:
+    # If not file is found, builds the sample dictionary from the 1_2_fastqc_trimming.py output files.
+    sample_dict = create_sample_dict("02_trim/", "_trimmed.fastq.gz")
 
 # The number indicates the script that has generated the file (except for 00_log).
 mkdir("04_bam/")

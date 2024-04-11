@@ -49,10 +49,9 @@ input_dir, adapter, slow, append, threads, processes, run = (
     args["run"],
 )
 
-# Build sample dict. Key is sample name, value is fastq file path. This is what we use to localize the appropiate files for each step.
+# Build sample dict. Key is sample name, value is fastq file path. This is what we use to localize the appropriate files for each step.
 # When a processing step is performed over the samples, their file name is changed to indicate the process performed.
 # The sample dict is stored as a json file that is updated on each step to keep track of the transformed samples' fastq files.
-
 sample_dict = create_sample_dict(input_dir, "_R1_", ".fastq.gz")
 
 # Creates necessary directories for the analysis.
