@@ -51,3 +51,4 @@ merge_count_files(pattern, folder_path, sample_dict)
 # Creates the colData file on request.
 if colData:
     create_colData(groups, read_type, pattern, folder_path, sample_dict)
+
