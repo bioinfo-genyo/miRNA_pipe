@@ -717,7 +717,7 @@ def prepare_ref(fasta: str, ref: str, threads: int = num_threads) -> None:
     mkdir(f"{ref}/Bowtie")
     bw_files = list_dir_files(f"{ref}/Bowtie")
     if len(bw_files) == 0:
-        ########### Launch Reference ###############
+        ######### Launch Reference ##########
         bash(f"gunzip -kf {fasta}", shell=True)
         bash(
             f"bowtie-build {fasta.replace('.gz','')} {ref}/Bowtie/genome --threads {threads}",
@@ -895,8 +895,9 @@ def filter_mirbase(kegg: str, ref_file: str) -> dict[str, list[str]]:
         ref_file (str): The reference file to be filtered.
 
     Returns:
-        dict: A dictionary containing the filtered file contents with modifications. Replaces the U with T in the miRNA sequence and saves it in a new dictionary where the keys are the sequences and the values are the identifiers.
+        dict: A dictionary containing the filtered file contents with modifications. Replaces U with T in the miRNA sequence and saves it in a new dictionary where the keys are the sequences and the values are the identifiers.
     """
+
     # Read the contents of the reference file (the whole miRNA base database).
     with open(ref_file, "r") as r:
         fileCont = r.readlines()
@@ -922,7 +923,7 @@ def filter_mirbase(kegg: str, ref_file: str) -> dict[str, list[str]]:
 
 def get_mirna_counts(args: tuple) -> dict[str, dict[str, int | str]]:
     """
-    Counts the miRNAs in the given fastq file and returns a dictionary with the sample name as key and a dictionary with the miRNAs as keys and the counts as values.
+    Counts the miRNAs in the given fastq file and returns a dictionary with the sample name and as values, another dictionary with the miRNAs as keys and the counts as values.
 
     Args:
         args (tuple): The arguments must be input in a single tuple with the following components (allows multiprocessing):
@@ -1087,7 +1088,7 @@ def run_aligning(args: tuple) -> dict[str, str]:
     if run:
         # bowtie -f -n $mismatches_seed -e 80 -l 18 -a -m $mapping_loc --best --strata $file_genome_latest $file_reads_latest $dir/mappings.bwt\n\n";
         bash(
-            f"bowtie -p {threads} -n 0 -l 18 --best --nomaqround -e 70 -k 1 -S {index} {fastq_file} 2>{logBowtie} | samtools view --threads {threads} -bS - | samtools sort --threads {threads} -o {outBam}",
+            f"bowtie -p {threads} -n 0 -l 18 --best --nomaqround -e 70 -k 1 -S -x {index} {fastq_file} 2>{logBowtie} | samtools view --threads {threads} -bS - | samtools sort --threads {threads} -o {outBam}",
             shell=True,
         )
         bash(f"samtools index {outBam}", shell=True)
@@ -1170,7 +1171,7 @@ def get_map_quality(args: tuple) -> None:
     if run:
         log_file = f"00_log/{sample_name}.log"
         mode = "a"
-        text = "\n############ MAPPING QUALITY ##############\n\n"
+        text = "\n########## MAPPING QUALITY ##########\n\n"
         write_log(log_file, text, mode)
         text = f"{sample_name} has {mapped_reads} mapped reads\n\n"
         write_log(log_file, text, mode)
@@ -1309,7 +1310,7 @@ def quantify_mirnas(args: tuple) -> None:
     if run:
         log_file = f"00_log/{sample_name}.log"
         mode = "a"
-        text = "\n############ miRNA QUALITY ##############\n\n"
+        text = "\n########## miRNA QUALITY ##########\n\n"
         write_log(log_file, text, mode)
         text = f"{sample_name} has {assigned} assigned reads\n\n"
         write_log(log_file, text, mode)
