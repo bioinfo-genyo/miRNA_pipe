@@ -5,5 +5,7 @@ This pipeline is tailor-made to use with sequencing data generated with Qiagen's
 
 It combines a series of python scripts and calls to the linux shell for other tools such as fastqc, multiqc, bowtie and featureCounts.
 
+A conda environment file is provided for easy installation of all the required dependencies.
+
 For use with other library preparation kits, omit the trimming and umi removal steps and substitute them with alternative methods (cutadapt, UMItools...).
 
