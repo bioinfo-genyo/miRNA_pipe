@@ -7,8 +7,10 @@
 ## Illumina universal adapter: AGATCGGAAGAG
 ## QIAseq miRNA adapter: AACTGTAGGCACCATCAAT
 
+## NOTE: This are example commands. In order to avoid lengthly commands we mapped the actual input values to the word in brackets: "{input}"
+## PLEASE, check all you parameters to fit the workflow behaviour to your need prior running it
 
-python 1_2_fastqc_trimming.py --input_dir fastq_folder --adapter AGATCGGAAGAG --run {run} -- threads {threads} --processes 4 (-a) 
+python 1_2_fastqc_trimming.py --input_dir fastq_folder --adapter AACTGTAGGCACCATCAAT --run {run} -- threads {threads} --processes 4 (-a) 
 python 1_3_prepare_ref.py --fasta {fasta_file} --ref {reference_folder}
 python 1_4_fastq_to_bam.py --ref {reference_folder} --kegg {kegg} --threads {threads} --procesess 4 --run {run}
 python 1_5_bam_to_counts.py --ref {reference_folder} --tax {tax} --gff {gff} --kegg {kegg} --use-mirbase {use_mirbase} --threads {threads} --procesess 4 --run {run}
